@@ -10,7 +10,9 @@ import shlex
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 from . import __version__
+from .codex import observe_codex
 from .core import digest, encoded, immutable, inspect, read_export, save_record
 
 
@@ -29,7 +31,18 @@ def load_bound(spec, config_dir):
     return json.loads(b.decode('utf-8'))
 
 
-def refresh(config, config_dir, binding, days):
+def refresh(config, config_dir, binding, days, through=None):
+    if 'sources' in config:
+        sources=config.get('sources')
+        if not isinstance(sources,list) or not sources:raise ValueError('at least one explicit source binding is required')
+        codex=[source for source in sources if source.get('kind')=='codex']
+        if len(sources)!=1 or len(codex)!=1 or codex[0].get('permitted') is not True:
+            raise ValueError('one permitted Codex source binding is required; mixed live sources are unsupported')
+        if days=='all':raise ValueError('direct Codex observations require a bounded UTC day window')
+        roots=[]
+        for value in codex[0].get('roots',[]):
+            path=Path(value).expanduser();roots.append(str(path if path.is_absolute() else config_dir/path))
+        return observe_codex(roots,config['projects'],binding['local_project_key'],days,through)
     spec=config['telemetry']
     if spec.get('permitted') is not True:raise ValueError('telemetry binding is not permitted')
     if 'export' in spec:
@@ -93,6 +106,22 @@ def render(receipt, *, receipt_path=None, command=None, refresh_command=None, st
             parts.append('<p>Correction reports retain their source provenance in details; they do not establish a causal link to this result.</p>')
         parts.extend([paragraph('Rework',o.get('rework')),'</article>'])
     if receipt.get('outcome_conflicts'):parts.append('<p>Outcome observations disagree across sources or versions. Inspect the complete differences below before claiming accepted quality.</p>')
+    daily=c.get('daily') or []
+    parts.append(heading('Daily observed usage'))
+    if not daily:parts.append('<p>No dated observed usage events are available for this window.</p>')
+    else:
+        peak=max((item.get('tokens') or 0 for item in daily),default=0) or 1
+        parts.append('<div class="daily-usage">')
+        for item in daily:
+            width=min(100,round(100*(item.get('tokens') or 0)/peak))
+            parts.append('<p>'+esc(item.get('date'))+': '+esc(item.get('tokens'))+
+                         ' tokens <span aria-hidden="true" style="display:inline-block;background:#3b7f77;height:.7rem;width:'+str(width)+'%"></span></p>')
+        parts.append('</div>')
+    parts.append(heading('Provider and model breakdown'))
+    models=c.get('provider_models') or []
+    if not models:parts.append('<p>No provider/model observations are available.</p>')
+    for item in models:
+        parts.append('<p>'+esc(item.get('provider'))+' · '+esc(item.get('model'))+': '+esc(item.get('tokens'))+' observed tokens</p>')
     parts.append(heading('Declared targets'))
     if not receipt['comparisons']:parts.append('<p>No declared target. No numeric comparison is available.</p>')
     for comparison in receipt['comparisons']:
@@ -106,6 +135,17 @@ def render(receipt, *, receipt_path=None, command=None, refresh_command=None, st
         for key,title in [('actual','Same-basis actual'),('absolute_target','Absolute token target'),('excess','Excess'),('remainder','Remainder')]:
             if key in comparison:parts.append(paragraph(title,comparison[key]))
         parts.append('</article>')
+    parts.append(heading('Operator-reported outcome'))
+    outcome=receipt.get('operator_outcome')
+    if not outcome:parts.append('<p>No local outcome has been defined. Usage never supplies an outcome status.</p>')
+    else:
+        parts.extend([paragraph('Outcome',outcome.get('statement')),paragraph('Success criterion',outcome.get('success_criterion')),
+                      paragraph('Progress',str(outcome.get('progress',{}).get('complete',0))+' of '+str(outcome.get('progress',{}).get('total',0))+' checkpoints complete'),
+                      '<p>Progress is operator-reported. Observed usage does not advance it.</p>'])
+        for checkpoint in outcome.get('checkpoints',[]):
+            parts.extend(['<article><h3>'+esc(checkpoint.get('text'))+'</h3>',paragraph('Checkpoint status',checkpoint.get('status')),
+                          paragraph('Reported by',checkpoint.get('actor')),paragraph('Reported at',checkpoint.get('reported_at')),
+                          paragraph('Operator note',checkpoint.get('note')),'</article>'])
     rec=receipt['recommendation']
     parts.extend([heading('Next move'),paragraph('Recommendation',rec.get('action')),paragraph('Next action',rec.get('next')),
                   paragraph('Missing evidence',rec.get('missing')),paragraph('Alternative',rec.get('alternative')),
@@ -149,21 +189,62 @@ def invocation():
 
 def initialize(args):
     """Create an explicit access declaration without reading a source."""
-    for name in ('project', 'project_id', 'telemetry_project_id'):
-        if not getattr(args,name).strip():raise ValueError(name+' must not be blank')
+    if not isinstance(args.project,str) or not args.project.strip():raise ValueError('project must not be blank')
     config_path=args.config.expanduser().absolute()
-    telemetry={'permitted':True}
-    if args.telemetry_export is not None:
-        if not args.sha256 or not re.fullmatch('[0-9a-f]{64}',args.sha256):
-            raise ValueError('--telemetry-export requires --sha256 (64 lowercase hex characters)')
-        if args.state_root is not None:raise ValueError('--state-root requires --consumer')
-        telemetry['export']={'permitted':True,'path':str(args.telemetry_export.expanduser().absolute()),'sha256':args.sha256}
+    direct=bool(args.codex_root);legacy=args.telemetry_export is not None or args.consumer is not None
+    if direct==legacy:raise ValueError('choose direct --codex-root or one compatible Agent Telemetry source')
+    if direct:
+        if not re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}',args.project):raise ValueError('direct local project key is invalid')
+        if args.project_id or args.telemetry_project_id or args.association:
+            raise ValueError('direct Codex setup uses a local project key, not compatible-export identities')
+        if args.sha256 or args.state_root:raise ValueError('--sha256 and --state-root apply only to compatible sources')
+        if args.outcome is None and (args.success_criterion is not None or args.checkpoints):
+            raise ValueError('--success-criterion and --checkpoint require --outcome')
+        if args.workspace is None:raise ValueError('direct Codex setup requires --workspace')
+        workspace=args.workspace.expanduser().absolute()
+        if not workspace.is_dir():raise ValueError('workspace must be an existing directory: '+str(workspace))
+        additional=[path.expanduser().absolute() for path in (args.additional_workspace or [])]
+        missing=[str(path) for path in additional if not path.is_dir()]
+        if missing:raise ValueError('additional workspace must be an existing directory: '+', '.join(missing))
+        project={'permitted':True,'workspace':str(workspace),'label':args.name or args.project,
+                 'additional_workspaces':[str(path) for path in additional]}
+        config={'sources':[{'id':'codex-local','kind':'codex','permitted':True,
+                            'roots':[str(path.expanduser().absolute()) for path in args.codex_root]}],
+                'projects':{args.project:project},'targets':{}}
+        if args.target_tokens is not None:
+            if args.target_tokens<=0:raise ValueError('--target-tokens must be positive')
+            config['targets'][args.project]=[{'kind':'numeric','unit':'tokens','meaning':'observed',
+                                              'amount':args.target_tokens,'window':'rolling-7-days'}]
+        if args.outcome is not None:
+            if not args.outcome.strip() or not args.success_criterion or not args.success_criterion.strip():
+                raise ValueError('--outcome requires a nonblank --success-criterion')
+            checkpoints=[]
+            for value in args.checkpoints or []:
+                if '=' not in value:raise ValueError('--checkpoint must use ID=description')
+                identity,text=value.split('=',1)
+                if not re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}',identity) or not text.strip():
+                    raise ValueError('invalid checkpoint ID or description')
+                checkpoints.append({'id':identity,'text':text.strip(),'status':'pending','provenance':'operator-reported'})
+            config['outcome']={'statement':args.outcome.strip(),'success_criterion':args.success_criterion.strip(),
+                               'provenance':'operator-reported','checkpoints':checkpoints,'history':[]}
     else:
-        if args.sha256:raise ValueError('--sha256 requires --telemetry-export')
-        telemetry['consumer']=str(args.consumer.expanduser().absolute())
-        if args.state_root is not None:telemetry['state_root']=str(args.state_root.expanduser().absolute())
-    config={'telemetry':telemetry,'projects':{args.project:{'permitted':True,'project_id':args.project_id,
-            'telemetry_project_id':args.telemetry_project_id,'association':args.association}},'targets':{}}
+        if any(value is not None for value in (args.workspace,args.name,args.target_tokens,args.outcome,args.success_criterion)) or args.additional_workspace or args.checkpoints:
+            raise ValueError('direct setup options cannot be combined with a compatible source')
+        for name in ('project_id','telemetry_project_id','association'):
+            value=getattr(args,name)
+            if not isinstance(value,str) or not value.strip():raise ValueError(name+' must not be blank')
+        telemetry={'permitted':True}
+        if args.telemetry_export is not None:
+            if not args.sha256 or not re.fullmatch('[0-9a-f]{64}',args.sha256):
+                raise ValueError('--telemetry-export requires --sha256 (64 lowercase hex characters)')
+            if args.state_root is not None:raise ValueError('--state-root requires --consumer')
+            telemetry['export']={'permitted':True,'path':str(args.telemetry_export.expanduser().absolute()),'sha256':args.sha256}
+        else:
+            if args.sha256:raise ValueError('--sha256 requires --telemetry-export')
+            telemetry['consumer']=str(args.consumer.expanduser().absolute())
+            if args.state_root is not None:telemetry['state_root']=str(args.state_root.expanduser().absolute())
+        config={'telemetry':telemetry,'projects':{args.project:{'permitted':True,'project_id':args.project_id,
+                'telemetry_project_id':args.telemetry_project_id,'association':args.association}},'targets':{}}
     inspect_argv=[*invocation(),'inspect','--config',str(config_path),'--project',args.project,
                   '--state',str(args.state.expanduser().absolute()),'--html']
     # Exclusive creation refuses regular files and symlinks, including dangling ones.
@@ -171,10 +252,131 @@ def initialize(args):
     with os.fdopen(os.open(config_path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'wb') as f:
         f.write(encoded(config));f.flush();os.fsync(f.fileno())
     return {'config':str(config_path),'inspect_argv':inspect_argv,
-            'next_steps':['Config created; no sources read. No targets or outcomes supplied.',
+            'next_steps':['Config created; no sources read.',
                           'Run the inspect command to read only your explicitly permitted source: '+shlex.join(inspect_argv),
-                          'Keep config and generated receipts private. Add only your actual targets and approved outcome bindings.'],
+                          'Keep config and generated receipts private. Targets are advisory; checkpoint updates are operator-reported.'],
             'execution_effects':[]}
+
+
+def replace_config(path, original, config):
+    data=encoded(config)
+    descriptor,temporary=tempfile.mkstemp(prefix='.'+path.name+'.',dir=path.parent)
+    try:
+        with os.fdopen(descriptor,'wb') as handle:
+            os.fchmod(handle.fileno(),0o600);handle.write(data);handle.flush();os.fsync(handle.fileno())
+        if path.read_bytes()!=original:raise ValueError('config changed during local update')
+        os.replace(temporary,path)
+    except Exception:
+        try:os.unlink(temporary)
+        except OSError:pass
+        raise
+
+
+def read_mutable_config(raw_path):
+    path=raw_path.expanduser().absolute()
+    if path.is_symlink():raise ValueError('refusing to update a symlinked config')
+    original=path.read_bytes()
+    return path,original,json.loads(original.decode('utf-8'))
+
+
+def update_checkpoint(args):
+    """Atomically apply one explicit local operator report; never read usage."""
+    path,original,config=read_mutable_config(args.config)
+    if not args.actor.strip():raise ValueError('actor must not be blank')
+    if args.project not in config.get('projects',{}):raise ValueError('unknown project selection')
+    outcome=config.get('outcome')
+    if not isinstance(outcome,dict):raise ValueError('no local outcome is configured')
+    checkpoints=outcome.get('checkpoints',[])
+    if not isinstance(checkpoints,list):raise ValueError('configured checkpoints must be a list')
+    matches=[item for item in checkpoints if isinstance(item,dict) and item.get('id')==args.id]
+    if len(matches)!=1:raise ValueError('checkpoint identity not found or ambiguous')
+    checkpoint=matches[0];reported_at=utc()
+    update={'id':args.id,'status':args.status,'actor':args.actor,'note':args.note,
+            'reported_at':reported_at,'provenance':'operator-reported'}
+    checkpoint.update(update);outcome.setdefault('history',[]).append(dict(update))
+    replace_config(path,original,config)
+    return {'config':str(path),'checkpoint':update,'execution_effects':[]}
+
+
+def update_target(args):
+    path,original,config=read_mutable_config(args.config)
+    if not args.actor.strip():raise ValueError('actor must not be blank')
+    if args.project not in config.get('projects',{}):raise ValueError('unknown project selection')
+    if args.tokens<=0:raise ValueError('--tokens must be positive')
+    previous=config.setdefault('targets',{}).get(args.project,[])
+    target={'kind':'numeric','unit':'tokens','meaning':'observed','amount':args.tokens,'window':'rolling-7-days'}
+    config['targets'][args.project]=[target]
+    update={'project':args.project,'previous':previous,'target':target,'actor':args.actor,'note':args.note,
+            'reported_at':utc(),'provenance':'operator-reported'}
+    config.setdefault('target_history',[]).append(update)
+    replace_config(path,original,config)
+    return {'config':str(path),'target':target,'execution_effects':[]}
+
+
+def update_outcome(args):
+    path,original,config=read_mutable_config(args.config)
+    if not args.actor.strip():raise ValueError('actor must not be blank')
+    if args.project not in config.get('projects',{}):raise ValueError('unknown project selection')
+    if not args.statement.strip() or not args.success_criterion.strip():raise ValueError('outcome values must not be blank')
+    previous=config.get('outcome') if isinstance(config.get('outcome'),dict) else {}
+    checkpoints=previous.get('checkpoints',[]);history=previous.get('history',[])
+    if not isinstance(checkpoints,list) or not isinstance(history,list):raise ValueError('configured outcome history is malformed')
+    outcome={'statement':args.statement.strip(),'success_criterion':args.success_criterion.strip(),
+             'provenance':'operator-reported','checkpoints':checkpoints,'history':history}
+    outcome['history'].append({'kind':'outcome-definition','statement':outcome['statement'],
+        'success_criterion':outcome['success_criterion'],'actor':args.actor,'note':args.note,
+        'reported_at':utc(),'provenance':'operator-reported'})
+    config['outcome']=outcome;replace_config(path,original,config)
+    return {'config':str(path),'outcome':{'statement':outcome['statement'],'success_criterion':outcome['success_criterion']},
+            'execution_effects':[]}
+
+
+def create_demo(args):
+    """Create a clearly labelled synthetic first report without reading user logs."""
+    root=args.root.expanduser().absolute()
+    root.mkdir(parents=True,mode=0o700)
+    workspace=root/'synthetic-workspace';logs=root/'synthetic-codex';state=root/'private-state'
+    workspace.mkdir();logs.mkdir()
+    now=dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
+    session='synthetic-spend-outcomes-demo'
+    rows=[
+        {'timestamp':now.isoformat(),'type':'session_meta','payload':{'id':session,'cwd':str(workspace)}},
+        {'timestamp':now.isoformat(),'type':'turn_context','payload':{'model':'synthetic-demo-model'}},
+        {'timestamp':now.isoformat(),'type':'event_msg','payload':{'type':'token_count','info':{
+            'total_token_usage':{'input_tokens':600,'cached_input_tokens':100,'output_tokens':100,
+                                 'reasoning_output_tokens':25,'total_tokens':700},
+            'last_token_usage':{'input_tokens':600,'cached_input_tokens':100,'output_tokens':100,
+                                'reasoning_output_tokens':25,'total_tokens':700}}}},
+    ]
+    log=logs/'synthetic-session.jsonl'
+    log.write_text(''.join(json.dumps(row,sort_keys=True)+'\n' for row in rows),encoding='utf-8')
+    config_path=root/'config.json'
+    config={'sources':[{'id':'synthetic-codex','kind':'codex','permitted':True,'roots':[str(logs)]}],
+            'projects':{'demo':{'permitted':True,'workspace':str(workspace),'label':'Synthetic demo'}},
+            'targets':{'demo':[{'kind':'numeric','unit':'tokens','meaning':'observed','amount':1000,'window':'rolling-7-days'}]},
+            'outcome':{'statement':'Understand one project’s observed Codex usage',
+                       'success_criterion':'Open a saved report and review its qualifications',
+                       'provenance':'operator-reported','history':[],
+                       'checkpoints':[{'id':'review-report','text':'Review the synthetic report','status':'pending',
+                                       'provenance':'operator-reported'}]}}
+    with os.fdopen(os.open(config_path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'wb') as handle:
+        handle.write(encoded(config));handle.flush();os.fsync(handle.fileno())
+    binding=dict(config['projects']['demo']);binding.update({'local_project_key':'demo','project_id':'demo',
+        'telemetry_project_id':'demo','association':'exact','days':7})
+    observed=observe_codex([logs],config['projects'],'demo',7,now.date().isoformat())
+    receipt=inspect(observed,binding,config['targets']['demo'],local_outcome=config['outcome'])
+    receipt['unavailable_sources']=[];receipt['source_versions']={'codex':digest(observed),'outcomes':None}
+    receipt['product_version']=__version__;receipt_id=digest(receipt)
+    receipt_path=immutable(state/'receipts'/(receipt_id+'.json'),receipt)
+    command=invocation();html_path=receipt_path.with_suffix('.html')
+    refresh_command=[*command,'inspect','--config',str(config_path),'--project','demo','--state',str(state),'--html']
+    content=render(receipt,receipt_path=receipt_path,command=command,refresh_command=refresh_command,
+                   state=state,project_label='Synthetic demo').encode('utf-8')
+    with html_path.open('xb') as handle:os.chmod(html_path,0o600);handle.write(content)
+    checkpoint=[*command,'checkpoint','--config',str(config_path),'--project','demo','--id','review-report',
+                '--status','complete','--actor','operator','--note','Reviewed the synthetic report']
+    return {'demo':True,'config':str(config_path),'receipt':str(receipt_path),'html':str(html_path),
+            'checkpoint_argv':checkpoint,'execution_effects':[]}
 
 
 def share(record):
@@ -191,19 +393,41 @@ def main(argv=None):
                      description='Create only the selected config. Declares permission to read the selected source on a later inspect; init reads no sources. Parent directory must exist.')
     i.add_argument('--config',type=Path,required=True)
     i.add_argument('--project',required=True,help='Your local workflow selection key')
-    i.add_argument('--project-id',required=True,help='Canonical beneficiary Project identity')
-    i.add_argument('--telemetry-project-id',required=True,help='Producer Project ID or code')
-    i.add_argument('--association',choices=['exact','owner-attested','correlated','unattributed'],required=True,
+    i.add_argument('--name',help='Human-readable local project name')
+    i.add_argument('--workspace',type=Path,help='Confirmed project workspace for direct Codex measurement')
+    i.add_argument('--additional-workspace',type=Path,action='append',help='Explicit additional checkout for this project')
+    i.add_argument('--project-id',help='Canonical beneficiary Project identity for a compatible export')
+    i.add_argument('--telemetry-project-id',help='Producer Project ID or code for a compatible export')
+    i.add_argument('--association',choices=['exact','owner-attested','correlated','unattributed'],
                    help='Your supported association basis; matching names alone is not exact')
-    source=i.add_mutually_exclusive_group(required=True)
+    source=i.add_mutually_exclusive_group()
     source.add_argument('--consumer',type=Path,help='Your permitted Agent Telemetry consumer.py')
     source.add_argument('--telemetry-export',type=Path,help='Your permitted complete telemetry-consumer-v1 export')
+    source.add_argument('--codex-root',type=Path,action='append',help='Explicit Codex JSONL root; repeat for another approved store')
     i.add_argument('--sha256',help='Exact export bytes digest, required for --telemetry-export')
     i.add_argument('--state-root',type=Path,help='Optional explicit producer state root for --consumer')
     i.add_argument('--state',type=Path,required=True,help='Product receipt directory for the printed inspect command; not created by init')
+    i.add_argument('--target-tokens',type=int,help='Advisory observed-token target for each rolling seven-day UTC window')
+    i.add_argument('--outcome',help='Plain-language intended outcome')
+    i.add_argument('--success-criterion',help='Operator-defined evidence of success')
+    i.add_argument('--checkpoint',dest='checkpoints',action='append',help='Optional ID=description checkpoint')
     s=sub.add_parser('inspect');s.add_argument('--config',type=Path,required=True);s.add_argument('--project',required=True)
     s.add_argument('--days',choices=['7','30','90','all'],default='7');s.add_argument('--state',type=Path,required=True)
+    s.add_argument('--through',help='Inclusive UTC end date (YYYY-MM-DD); defaults to today')
     s.add_argument('--baseline',type=Path);s.add_argument('--html',action='store_true')
+    c=sub.add_parser('checkpoint',help='Record one explicit operator-reported checkpoint update')
+    c.add_argument('--config',type=Path,required=True);c.add_argument('--project',required=True);c.add_argument('--id',required=True)
+    c.add_argument('--status',choices=['pending','in-progress','complete','blocked'],required=True)
+    c.add_argument('--actor',required=True);c.add_argument('--note')
+    target=sub.add_parser('target',help='Update the advisory rolling seven-day token target')
+    target.add_argument('--config',type=Path,required=True);target.add_argument('--project',required=True)
+    target.add_argument('--tokens',type=int,required=True);target.add_argument('--actor',required=True);target.add_argument('--note')
+    outcome=sub.add_parser('outcome',help='Update the operator-reported local outcome definition')
+    outcome.add_argument('--config',type=Path,required=True);outcome.add_argument('--project',required=True)
+    outcome.add_argument('--statement',required=True);outcome.add_argument('--success-criterion',required=True)
+    outcome.add_argument('--actor',required=True);outcome.add_argument('--note')
+    demo=sub.add_parser('demo',help='Create a synthetic local report without reading user logs')
+    demo.add_argument('--root',type=Path,required=True,help='New directory to create; existing paths are refused')
     d=sub.add_parser('record');d.add_argument('--state',type=Path,required=True);d.add_argument('--receipt',type=Path,required=True)
     d.add_argument('--id',required=True);d.add_argument('--actor',required=True);d.add_argument('--decision',choices=['investigate','change','hold','keep'],required=True)
     d.add_argument('--feedback');d.add_argument('--next-action');d.add_argument('--review-trigger');d.add_argument('--supersedes')
@@ -214,12 +438,19 @@ def main(argv=None):
     args=p.parse_args(argv)
     try:
         if args.cmd=='init':answer=initialize(args)
+        elif args.cmd=='checkpoint':answer=update_checkpoint(args)
+        elif args.cmd=='target':answer=update_target(args)
+        elif args.cmd=='outcome':answer=update_outcome(args)
+        elif args.cmd=='demo':answer=create_demo(args)
         elif args.cmd=='inspect':
             config=read_export(args.config);binding=dict(config['projects'][args.project]);days='all' if args.days=='all' else int(args.days)
+            if 'sources' in config:
+                binding.update({'local_project_key':args.project,'project_id':args.project,
+                                'telemetry_project_id':args.project,'association':'exact'})
             binding['days']=days
             if binding.get('permitted') is not True:raise ValueError('project binding not permitted')
             unavailable=[]
-            try:telemetry=refresh(config,args.config.resolve().parent,binding,days)
+            try:telemetry=refresh(config,args.config.resolve().parent,binding,days,args.through)
             except (OSError,subprocess.SubprocessError) as e:
                 telemetry={'contract':'telemetry-consumer-v1','producer':'agent-telemetry','status':'unavailable','coverage':{'missing':[{'source':'configured-consumer','status':type(e).__name__}]}}
             outcomes=None
@@ -227,7 +458,7 @@ def main(argv=None):
                 try:outcomes=load_bound(config['outcomes'],args.config.resolve().parent)
                 except OSError as e:unavailable.append({'source':'outcomes','status':type(e).__name__})
             receipt=inspect(telemetry,binding,config.get('targets',{}).get(args.project,[]),outcomes=outcomes,
-                            baseline=read_export(args.baseline) if args.baseline else None)
+                            baseline=read_export(args.baseline) if args.baseline else None,local_outcome=config.get('outcome'))
             receipt['unavailable_sources']=unavailable
             receipt['source_versions']={'telemetry':digest(telemetry),'outcomes':digest(outcomes) if outcomes else None}
             receipt['product_version']=__version__
@@ -238,6 +469,7 @@ def main(argv=None):
                 command=invocation()
                 refresh_command=[*command,'inspect','--config',str(args.config.resolve()),'--project',args.project,
                                  '--days',args.days,'--state',str(args.state.resolve()),'--html']
+                if args.through:refresh_command+=['--through',args.through]
                 if args.baseline:refresh_command+=['--baseline',str(args.baseline.resolve())]
                 content=render(receipt,receipt_path=path,command=command,refresh_command=refresh_command,state=args.state,
                                project_label=args.project[:1].upper()+args.project[1:]).encode('utf-8')

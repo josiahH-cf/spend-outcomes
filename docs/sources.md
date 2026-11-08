@@ -1,9 +1,57 @@
 # Explicit source bindings
 
-The local config is an access declaration, not a discovery request. Only its
-consumer and digest-bound files are read. A manager uses the same permission
-boundary. Keep config, consumer exports, receipts and decisions private. There
-is no raw provider/client scan and no automatic upstream write.
+The local config is an access declaration, not a discovery request. Only the
+roots and checksum-bound files it names are read. Keep config, source paths,
+receipts and decisions private. There is no provider-wide discovery and no
+automatic upstream write.
+
+## Direct Codex source (recommended)
+
+A direct binding has one `kind: codex` source with `permitted: true` and one or
+more explicitly approved JSONL roots. The first live route is Codex CLI on WSL.
+Version 1.0.0 does not claim a live Claude Code reader.
+
+Each local project has a stable key, display label, confirmed workspace, and
+optional explicitly mapped additional workspaces. Project identity does not
+require a canonical registry or external Project ID. A recorded session is
+associated by supported workspace evidence. If its workspace matches more than
+one configured project, it remains ambiguous and is not assigned. Sessions from
+other workspaces remain out of scope.
+
+The reader retains only:
+
+- session identity and recorded workspace for association;
+- event timestamp and inclusive UTC day;
+- observed model name; and
+- input, cached input, cache-write, output, reasoning-output, and total counters.
+
+Prompts, responses, instructions, tool text, credentials, and arbitrary event
+payloads are never retained in observations or reports. Symbolic links to files
+outside an approved resolved root are not followed.
+
+Codex cumulative snapshots are converted to dated event deltas. Repeated
+snapshots and copied histories collapse by session/event identity. A counter
+reset starts a new nonnegative segment. Compaction-response usage is included
+only with its matching response identity and is counted once. Observed tokens
+are input plus output; cached input and reasoning output remain non-additive
+subclasses. Model names are descriptive observations, not provider control.
+
+The report names the selected window, source clock, roots, coverage, excluded or
+ambiguous session counts, daily observations, and provider/model breakdown.
+Malformed or missing data produces partial or unavailable coverage. Partial
+tokens remain visible but cannot support a full-window target comparison.
+An available complete scan with no matching events is observed zero; a missing
+or refused source is unknown.
+
+Direct observations carry no price table, so all observed tokens remain
+unpriced for API-equivalent purposes. This does not affect a same-window token
+target. It prevents a fully priced dollar comparison and never implies billed
+cash or a subscription charge.
+
+## Optional compatible Agent Telemetry source
+
+The compatibility route exists for users who already have an authorized
+`telemetry-consumer-v1` source. It is not required for direct setup.
 
 Live reads invoke the configured `consumer.py --json --scope {...}` with project,
 canonical outcome Project, days and optional explicit native session pairs.
@@ -35,7 +83,7 @@ An optional `outcomes` config entry is a digest-bound file with `permitted`,
 ```
 
 Use the existing result owner to export only authorized fields. This application
-reads no OA database and requires no new OA endpoint. Explicitly attributed
+reads no orchestration database and requires no new endpoint. Explicitly attributed
 operator reports may use `association: owner-attested`; correlated matches remain
 `correlated`. Unknown installed/review/benefit fields stay null. A delivered
 artifact or Accept supplies no benefit verdict. Contradictory observations and
@@ -61,9 +109,9 @@ operator-reported, not authenticated machine evidence. Retry under the same ID
 returns identical bytes; changed content requires a new ID with `--supersedes`.
 Export/import retain original IDs, timestamps, receipt/source versions and
 provenance; an existing different record holds. Export only decision records,
-never full restricted telemetry receipts. OA's existing owner may associate an
-export under its original identity; this product performs no OA import or task
-mutation and cannot claim that downstream integration was observed.
+never full restricted telemetry receipts. A compatible owner may associate an
+export under its original identity; this product performs no upstream import or
+task mutation and cannot claim that downstream integration was observed.
 
 Version 0.1.1 keeps detailed exports and producer quality observations together,
 even for the same logical outcome or equal version labels. Each carries its own

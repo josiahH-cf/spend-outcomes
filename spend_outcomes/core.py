@@ -1,5 +1,6 @@
 """Pure qualification and immutable local decision records; no execution authority."""
 import datetime as dt
+import copy
 import hashlib
 import json
 import math
@@ -85,6 +86,8 @@ def comparison(target, consumption, binding):
         if not number(target.get('percent')) or target['percent']>100:raise ValueError('invalid allocation')
         return {**r,'absolute_target':None,'reason':'A qualified account token denominator and same-account attributed usage are required; remaining percentages and subscription prices supply neither.'}
     if kind!='numeric' or not number(target.get('amount')):raise ValueError('invalid target')
+    if consumption.get('coverage_status') not in (None,'complete'):
+        return {**r,'reason':'Observed source coverage is partial or unavailable; a full-window comparison is not qualified.'}
     same=all(target.get(k)==consumption.get(k) and target.get(k) is not None for k in ('from','to'))
     same=same and target.get('project_id',binding['project_id'])==binding['project_id']
     if not same:return {**r,'reason':'Target scope or UTC period differs or is unknown.'}
@@ -111,9 +114,36 @@ def observation_time(observation):
         return None
 
 
-def inspect(telemetry, binding, targets, *, outcomes=None, baseline=None):
-    if telemetry.get('contract')!='telemetry-consumer-v1' or telemetry.get('producer')!='agent-telemetry':
-        raise ValueError('only the supported telemetry-consumer-v1 source is permitted')
+def operator_outcome(value):
+    if value is None:return None
+    if not isinstance(value,dict) or not isinstance(value.get('statement'),str) or not value['statement'].strip():
+        raise ValueError('operator outcome requires a statement')
+    if not isinstance(value.get('success_criterion'),str) or not value['success_criterion'].strip():
+        raise ValueError('operator outcome requires a success criterion')
+    checkpoints=value.get('checkpoints',[])
+    if not isinstance(checkpoints,list):raise ValueError('operator outcome checkpoints must be a list')
+    seen=set()
+    for checkpoint in checkpoints:
+        if not isinstance(checkpoint,dict) or not re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}',checkpoint.get('id','')):
+            raise ValueError('invalid checkpoint identity')
+        if checkpoint['id'] in seen:raise ValueError('duplicate checkpoint identity')
+        seen.add(checkpoint['id'])
+        if not isinstance(checkpoint.get('text'),str) or not checkpoint['text'].strip():raise ValueError('checkpoint text required')
+        if checkpoint.get('status','pending') not in ('pending','in-progress','complete','blocked'):
+            raise ValueError('invalid checkpoint status')
+        if checkpoint.get('provenance','operator-reported')!='operator-reported':
+            raise ValueError('checkpoint provenance must remain operator-reported')
+    result=copy.deepcopy(value)
+    result['provenance']='operator-reported'
+    result['progress']={'complete':sum(item.get('status','pending')=='complete' for item in checkpoints),
+                        'total':len(checkpoints),'basis':'operator-reported; usage does not advance checkpoints'}
+    return result
+
+
+def inspect(telemetry, binding, targets, *, outcomes=None, baseline=None, local_outcome=None):
+    supported=((telemetry.get('contract')=='telemetry-consumer-v1' and telemetry.get('producer')=='agent-telemetry') or
+               (telemetry.get('contract')=='spend-outcomes-observation-v1' and telemetry.get('producer')=='spend-outcomes-codex'))
+    if not supported:raise ValueError('only a direct Codex observation or supported telemetry-consumer-v1 export is permitted')
     if binding.get('association') not in ('exact','owner-attested','correlated','unattributed'):
         raise ValueError('explicit project association required')
     rows=[p for p in telemetry.get('projects',[]) if binding.get('telemetry_project_id') in (p.get('project_id'),p.get('project_code'))]
@@ -125,14 +155,17 @@ def inspect(telemetry, binding, targets, *, outcomes=None, baseline=None):
         if period.get(key) is not None and not number(period[key]):raise ValueError('invalid consumption '+key)
     if period.get('unpriced_tokens') is not None and period.get('tokens') is not None and period['unpriced_tokens']>period['tokens']:
         raise ValueError('unpriced tokens exceed total')
-    c={k:period.get(k) for k in ('from','to','days','tokens','api_equivalent_cost_usd','unpriced_tokens','sessions','session_days','basis')}
+    c={k:period.get(k) for k in ('from','to','days','tokens','api_equivalent_cost_usd','unpriced_tokens','sessions','session_days','basis',
+                                 'coverage_status','daily','provider_models','token_classes','events')}
     # Never fall back to lifetime or whole-session window values.
     c['from']=period.get('from_day',period.get('from'))
     c['to']=period.get('to_day',period.get('to'))
     c['basis']=period.get('basis') or ('provider daily usage events; inclusive UTC dates' if period else None)
+    if c.get('coverage_status') is None and telemetry.get('contract')=='spend-outcomes-observation-v1':
+        c['coverage_status']=telemetry.get('coverage',{}).get('status','unknown')
     c.update({'billed_cash_usd':None,'subscription_charge_usd':None,'attribution':row.get('attribution','unattributed'),
               'cost_meaning':'API-list-price equivalent for known token classes; not invoice or subscription allocation'})
-    source={'contract':telemetry['contract'],'generation':telemetry.get('generation'),
+    source={'contract':telemetry['contract'],'producer':telemetry.get('producer'),'generation':telemetry.get('generation'),
             'as_of':telemetry.get('generation',{}).get('finished_at'),'status':telemetry.get('status','unknown'),
             'coverage':telemetry.get('coverage',{}),'sources':telemetry.get('sources',[]),
             'conflicts':telemetry.get('conflicts'),'conflict_summary':conflict_summary(telemetry.get('conflicts')),
@@ -146,6 +179,10 @@ def inspect(telemetry, binding, targets, *, outcomes=None, baseline=None):
     if telemetry.get('status')!='current':limitations.append('Source is '+str(telemetry.get('status','unknown'))+'; regeneration does not refresh observation time.')
     source_issues=[]
     if source['status']!='current':source_issues.append('Source status is '+str(source['status'])+'; a current producer observation is needed for current-source claims.')
+    for issue in telemetry.get('coverage',{}).get('issues',[]):
+        if isinstance(issue,str):
+            source_issues.append(issue)
+            limitations.append(issue)
     if not rows:source_issues.append('Selected telemetry project is not observed; its selected-project period is unavailable.')
     elif not period:source_issues.append('The selected-project period is unavailable; request its supported UTC period from the producer.')
     if source['conflict_summary']['status']!='zero':
@@ -203,7 +240,15 @@ def inspect(telemetry, binding, targets, *, outcomes=None, baseline=None):
     contrary=[o for o in current if o.get('review_verdict') in ('needs-changes','rejected') or o.get('acceptance') in ('needs-changes','rejected')]
     if conflicts:limitations.append('Outcome observations disagree across sources or versions; inspect outcome_conflicts before claiming accepted quality.')
     if not facts:limitations.append('No approved detailed result export: delivery, acceptance and benefit remain unknown.')
-    comp=[comparison(t,c,binding) for t in targets]
+    normalized_targets=[]
+    for target in targets:
+        target=copy.deepcopy(target)
+        if target.get('window')=='rolling-7-days' and target.get('kind')=='numeric':
+            target.setdefault('from',c.get('from'));target.setdefault('to',c.get('to'))
+            if c.get('days')!=7:target['from']=target['to']=None
+        normalized_targets.append(target)
+    comp=[comparison(t,c,binding) for t in normalized_targets]
+    qualified_outcome=operator_outcome(local_outcome)
     if contrary:
         recommendation={'action':'investigate','next':'Inspect contrary needs-changes/rejected review for '+', '.join(sorted({o['id'] for o in contrary}))+'; reconcile the review with its artifact and check the required correction before a workflow change.',
                         'evidence':[digest(o) for o in contrary]+[digest(conflicts)],
@@ -229,12 +274,12 @@ def inspect(telemetry, binding, targets, *, outcomes=None, baseline=None):
         same=same and old.get('days')==c.get('days') and baseline.get('changed_conditions')==[]
         prior={'status':'comparable' if same else 'unsupported','previous':old,'changed_conditions':baseline.get('changed_conditions'),
                'reason':'Same declared scope, duration, units and source basis; no causal saving or acceptance equivalence inferred.' if same else 'Scope, duration, source basis or changed conditions not qualified.'}
-    return {'contract':'pv-receipt-v1','selection':binding,'source':source,'consumption':c,'targets':targets,'comparisons':comp,
+    return {'contract':'pv-receipt-v1','selection':binding,'source':source,'consumption':c,'targets':normalized_targets,'comparisons':comp,
             'other_views':{k:telemetry.get('accounting',{}).get(k) for k in ('shared','totals','coverage_gaps','repositories')},
             'native_sessions':telemetry.get('sessions',[]),
             'capacity':telemetry.get('capacity',[]),'outcomes':facts,'outcome_conflicts':conflicts,
             'outcome_coverage':{'returned':len(grouped),'observations_returned':len(facts),
                                 'count_basis':'Distinct logical outcome IDs in the selected Project; source/version observations are non-additive.','denominator':outcomes.get('denominator') if outcomes else None,
                                 'telemetry_recent_total':telemetry.get('quality',{}).get('outcomes_total')},
-            'human_benefit':None,'limitations':limitations,'prior_comparison':prior,'recommendation':recommendation,
+            'operator_outcome':qualified_outcome,'human_benefit':None,'limitations':limitations,'prior_comparison':prior,'recommendation':recommendation,
             'advisory_only':True,'execution_effects':[]}

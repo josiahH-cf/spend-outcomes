@@ -45,7 +45,7 @@ def receipt():
     s=source();s['conflicts']={'total':0,'items':[]}
     r=inspect(s,{**binding(),'label':'Espansr'},[
         {'kind':'allocation','percent':5,'period':'weekly','unit':'tokens','account':a}
-        for a in ('personal-openai','personal-anthropic')])
+        for a in ('subscription-a','subscription-b')])
     r['outcomes']=[{'id':'result-130','intended_result':'One copyable block','delivered':True,'installed':True,
                     'acceptance':None,'benefit':None,'corrections':[{'text':'Cold-trigger correction reported','machine_causality':'unestablished'}],
                     'artifact':'https://example.test/result','association':'owner-attested'}]
@@ -58,7 +58,7 @@ class ReadableViewTests(unittest.TestCase):
         expected=['Espansr','2026-10-30','2026-11-05','Source as of','Observed consumption','Observed tokens',
                   'API-equivalent','Billed cash: Unknown','Delivered: Yes','Installed: Yes',
                   'Human acceptance: Unknown','Helpfulness / benefit: Unknown','Cold-trigger correction reported',
-                  'Declared targets','personal-openai','personal-anthropic','5%','Comparison: Unknown',
+                  'Declared targets','subscription-a','subscription-b','5%','Comparison: Unknown',
                   'qualified account token denominator','Next move','Read and record feedback','Source qualifications']
         for value in expected:self.assertIn(value,visible)
         headings=['Observed consumption','Results','Declared targets','Next move','Read and record feedback','Source qualifications']
