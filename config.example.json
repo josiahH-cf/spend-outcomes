@@ -1,0 +1,13 @@
+{
+  "telemetry": {"permitted": true, "consumer": "/YOUR/agent-telemetry/consumer.py", "state_root": "/YOUR/private/telemetry-state"},
+  "projects": {
+    "your-workflow": {"permitted": true, "project_id": "YOUR-CANONICAL-PROJECT", "telemetry_project_id": "YOUR-TELEMETRY-CODE", "association": "owner-attested"}
+  },
+  "targets": {
+    "your-workflow": [
+      {"kind": "numeric", "unit": "tokens", "meaning": "observed", "amount": 100000, "from": "2026-10-30", "to": "2026-11-05"},
+      {"kind": "numeric", "unit": "USD", "meaning": "billed-cash", "amount": 10, "from": "2026-10-30", "to": "2026-11-05"},
+      {"kind": "allocation", "percent": 5, "unit": "tokens", "period": "weekly", "account": "YOUR-SUBSCRIPTION"}
+    ]
+  }
+}
