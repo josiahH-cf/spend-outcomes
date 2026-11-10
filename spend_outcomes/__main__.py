@@ -77,9 +77,9 @@ def render(receipt, *, receipt_path=None, command=None, refresh_command=None, st
     selection=receipt['selection'];c=receipt['consumption'];source=receipt['source']
     label=selection.get('label') or selection.get('name') or project_label or selection.get('telemetry_project_id') or selection.get('project_id')
     parts=['<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">',
-           '<title>Spend &amp; Outcomes — '+esc(label)+'</title>',
+           '<title>Cherry Meter — '+esc(label)+'</title>',
            '<style>body{font:17px/1.5 system-ui;max-width:60rem;margin:auto;padding:1.5rem;color:#172b36;background:#fafbf9}h1,h2,h3{line-height:1.2}h2{margin-top:1.8rem}p{margin:.5rem 0}article,details{border:1px solid #ccd6d8;border-radius:.5rem;padding:1rem;margin:1rem 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#edf1f2;padding:.8rem}summary{cursor:pointer;font-weight:600}a{color:#075d88}</style>',
-           '<h1>'+esc(label)+' · Spend &amp; Outcomes</h1>',
+           '<h1>'+esc(label)+' · Cherry Meter</h1>',
            '<p>Period: '+esc(c.get('from'))+' to '+esc(c.get('to'))+' (inclusive UTC). Source as of: '+esc(source.get('as_of'))+'.</p>',
            '<p>Saved observations; opening this view makes no new measurement. Advisory only: reading and recording decisions start no work and change no Stop.</p>',
            heading('Observed consumption'),paragraph('Observed tokens',c.get('tokens')),
@@ -386,7 +386,7 @@ def share(record):
 
 
 def main(argv=None):
-    p=argparse.ArgumentParser(description='Local advisory consumption, results and decisions')
+    p=argparse.ArgumentParser(description='Cherry Meter: local advisory consumption, results and decisions')
     p.add_argument('--version',action='version',version=__version__)
     sub=p.add_subparsers(dest='cmd',required=True)
     i=sub.add_parser('init',help='Create a private config from explicit source and Project bindings; never overwrite',

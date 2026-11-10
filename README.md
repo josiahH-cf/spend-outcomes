@@ -1,9 +1,14 @@
-# Spend & Outcomes
+# Cherry Meter
 
 Measure the Codex tokens observed for one project on WSL, compare them with an
 advisory seven-day target, and track separately what you say has happened toward
 the project’s outcome. Everything runs locally. Usage never blocks work and never
 marks an outcome checkpoint for you.
+
+Previously called Spend & Outcomes. The `spend-outcomes.pyz` download name,
+`spend_outcomes` Python module, repository URL, and existing config/state paths
+remain compatible. Keep using your current config and saved reports; no data
+migration is required. Version 1.0.1 updates the name in newly generated reports.
 
 ## Set up with an AI assistant
 
@@ -20,7 +25,7 @@ proposed settings and ask before writing them. A chat-only assistant can walk yo
 through the manual commands below but cannot run them for you.
 
 Requirements: WSL, Python 3.10 or newer, a Codex project workspace, and an
-explicitly permitted local Codex JSONL root. Spend & Outcomes does not require an
+explicitly permitted local Codex JSONL root. Cherry Meter does not require an
 orchestration service, Agent Telemetry, a provider API key, or a background service.
 
 ## Manual setup
@@ -116,7 +121,7 @@ advisory and have no execution effect.
 
 An existing complete, checksum-bound `telemetry-consumer-v1` export remains
 supported. It is optional and is documented in [docs/sources.md](docs/sources.md).
-Claude Code is not advertised as a live measurement source in version 1.0.0; an
+Claude Code is not advertised as a live measurement source in version 1.0.1; an
 assistant used for setup does not determine which logs the product measures.
 
 ## Privacy and recovery

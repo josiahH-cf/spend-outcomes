@@ -1,2 +1,2 @@
-"""Local advisory Spend & Outcomes product."""
-__version__ = '1.0.0'
+"""Local advisory Cherry Meter product."""
+__version__ = '1.0.1'
