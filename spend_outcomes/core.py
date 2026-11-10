@@ -21,17 +21,8 @@ def read_export(path):
 
 
 def immutable(path, value):
-    path=Path(path);path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    data=encoded(value)
-    try:
-        with path.open('xb') as f:
-            path.chmod(0o600);f.write(data);f.flush()
-            import os
-            os.fsync(f.fileno())
-    except FileExistsError:
-        if path.read_bytes()!=data:
-            raise ValueError('immutable identity conflict: '+path.name)
-    return path
+    from .storage import atomic_bytes
+    return atomic_bytes(path, encoded(value))
 
 
 def save_record(root, record):
@@ -142,7 +133,8 @@ def operator_outcome(value):
 
 def inspect(telemetry, binding, targets, *, outcomes=None, baseline=None, local_outcome=None):
     supported=((telemetry.get('contract')=='telemetry-consumer-v1' and telemetry.get('producer')=='agent-telemetry') or
-               (telemetry.get('contract')=='spend-outcomes-observation-v1' and telemetry.get('producer')=='spend-outcomes-codex'))
+               (telemetry.get('contract')=='spend-outcomes-observation-v1' and telemetry.get('producer') in
+                ('spend-outcomes-codex','cherry-meter-device','cherry-meter-claude','spend-outcomes-claude')))
     if not supported:raise ValueError('only a direct Codex observation or supported telemetry-consumer-v1 export is permitted')
     if binding.get('association') not in ('exact','owner-attested','correlated','unattributed'):
         raise ValueError('explicit project association required')

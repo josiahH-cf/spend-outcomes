@@ -1,8 +1,10 @@
 """First run uses only the executable and operator-selected source bindings."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from scripts.hn_delivery import build
@@ -34,16 +36,14 @@ class FirstRunTests(unittest.TestCase):
         self.assertFalse(config.exists());self.assertFalse(state.exists())
         result = self.command(command, p, *args)
         self.assertFalse(state.exists())
-        self.assertEqual(config.stat().st_mode & 0o777, 0o600)
+        if os.name != 'nt':
+            self.assertEqual(config.stat().st_mode & 0o777, 0o600)
         original = config.read_bytes();data = json.loads(original)
         self.assertEqual(data['targets'], {})
         self.assertEqual(data['telemetry']['export']['path'], str(src))
         self.assertEqual(data['projects']['workflow']['association'], 'owner-attested')
-        # Retry and symlink collisions preserve bytes, rather than reconciling init.
+        # Retry collisions preserve bytes, rather than reconciling init.
         self.command(command, p, *args, ok=False);self.assertEqual(config.read_bytes(), original)
-        config.unlink();config.symlink_to(src)
-        self.command(command, p, *args, ok=False);self.assertEqual(hashlib.sha256(src.read_bytes()).hexdigest(), sha)
-        config.unlink();config.write_bytes(original)
         inspected = self.command(result['inspect_argv'], p)
         self.assertEqual(inspected['view']['consumption']['tokens'], 120)
         self.assertEqual(inspected['view']['comparisons'], [])
@@ -54,11 +54,28 @@ class FirstRunTests(unittest.TestCase):
         self.assertIn('digest mismatch', refusal.stderr)
         self.assertEqual(config.read_bytes(), original)
 
+    def test_symlink_config_is_not_overwritten(self):
+        import sys
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);source_path=root/'export.json';source_path.write_text(json.dumps(source()))
+            sha=hashlib.sha256(source_path.read_bytes()).hexdigest();config=root/'config.json'
+            try:
+                config.symlink_to(source_path)
+            except OSError as error:
+                if os.name=='nt' and getattr(error,'winerror',None)==1314:
+                    self.skipTest('Windows runner lacks symlink privilege; no settings changed')
+                raise
+            self.command([sys.executable,'-m','spend_outcomes'],ROOT,'init','--config',config,
+                '--project','workflow','--project-id','canonical-p','--telemetry-project-id','p',
+                '--association','owner-attested','--telemetry-export',source_path,'--sha256',sha,
+                '--state',root/'state',ok=False)
+            self.assertEqual(hashlib.sha256(source_path.read_bytes()).hexdigest(),sha)
+
     def test_live_binding_reads_only_on_inspect_and_missing_source_is_disclosed(self):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d);marker=p/'called';consumer=p/'consumer.py'
             consumer.write_text('from pathlib import Path\nimport json,sys\nPath('+repr(str(marker))+').write_text(json.dumps(sys.argv[1:]))\nprint('+repr(json.dumps(source()))+')\n')
-            command=['python3','-c','import sys; sys.path.insert(0,'+repr(str(ROOT))+'); from spend_outcomes.__main__ import main; raise SystemExit(main())']
+            command=[sys.executable,'-c','import sys; sys.path.insert(0,'+repr(str(ROOT))+'); from spend_outcomes.__main__ import main; raise SystemExit(main())']
             args=['init','--config','config.json','--project','workflow','--project-id','canonical-p',
                   '--telemetry-project-id','p','--association','correlated','--consumer','consumer.py',
                   '--state-root','producer state','--state','product state']
@@ -76,7 +93,7 @@ class FirstRunTests(unittest.TestCase):
     def test_incomplete_and_invalid_binding_creates_nothing(self):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)
-            command=['python3','-c','import sys; sys.path.insert(0,'+repr(str(ROOT))+'); from spend_outcomes.__main__ import main; raise SystemExit(main())']
+            command=[sys.executable,'-c','import sys; sys.path.insert(0,'+repr(str(ROOT))+'); from spend_outcomes.__main__ import main; raise SystemExit(main())']
             args=['init','--config','config.json','--project','w','--project-id','canonical',
                   '--telemetry-project-id','p','--association','owner-attested',
                   '--telemetry-export','missing.json','--sha256','a'*64,'--state','state']
@@ -95,11 +112,11 @@ class FirstRunTests(unittest.TestCase):
     def test_source_first_run(self):
         with tempfile.TemporaryDirectory() as d:
             # Bind source invocation explicitly while cwd has no repository files.
-            command = ['python3', '-c', 'import sys; sys.path.insert(0,'+repr(str(ROOT))+'); from spend_outcomes.__main__ import main; raise SystemExit(main())']
+            command = [sys.executable, '-c', 'import sys; sys.path.insert(0,'+repr(str(ROOT))+'); from spend_outcomes.__main__ import main; raise SystemExit(main())']
             self.exercise(command, Path(d))
 
     def test_committed_archive_first_run(self):
         revision = subprocess.check_output(['git','rev-parse','HEAD'], cwd=ROOT, text=True).strip()
         with tempfile.TemporaryDirectory() as d:
             p=Path(d);app=p/'app.pyz';app.write_bytes(build(ROOT,revision)['bytes'])
-            self.exercise(['python3', str(app)], p)
+            self.exercise([sys.executable, str(app)], p)

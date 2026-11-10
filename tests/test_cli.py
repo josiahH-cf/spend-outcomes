@@ -2,6 +2,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from test_product import source
@@ -11,7 +12,7 @@ ROOT=Path(__file__).resolve().parents[1]
 
 class CLITests(unittest.TestCase):
     def cli(self,*args,ok=True):
-        r=subprocess.run(['python3','-m','spend_outcomes',*map(str,args)],cwd=ROOT,capture_output=True,text=True)
+        r=subprocess.run([sys.executable,'-m','spend_outcomes',*map(str,args)],cwd=ROOT,capture_output=True,text=True)
         if ok:self.assertEqual(r.returncode,0,r.stderr)
         else:self.assertEqual(r.returncode,2,r.stderr)
         return json.loads(r.stdout if ok else r.stderr)

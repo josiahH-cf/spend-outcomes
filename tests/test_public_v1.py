@@ -56,7 +56,7 @@ def write_session(path, workspace, *, session="session-1", secret="PRIVATE PROMP
 
 class PublicV1Tests(unittest.TestCase):
     def cli(self, cwd, *args, ok=True):
-        command=list(map(str,args)) if args and Path(str(args[0])).name.startswith("python") else ["python3", "-m", "spend_outcomes", *map(str,args)]
+        command=list(map(str,args)) if args and Path(str(args[0])).name.startswith("python") else [sys.executable, "-m", "spend_outcomes", *map(str,args)]
         result = subprocess.run(
             command,
             cwd=cwd, text=True, capture_output=True,
@@ -76,7 +76,8 @@ class PublicV1Tests(unittest.TestCase):
                 "--workspace",workspace,"--codex-root",logs,"--state",state,"--target-tokens","200",
                 "--outcome","Ship the useful thing","--success-criterion","A person can use it",
                 "--checkpoint","first-report=Open the first report")
-            self.assertEqual(config.stat().st_mode & 0o777,0o600)
+            if os.name != 'nt':
+                self.assertEqual(config.stat().st_mode & 0o777,0o600)
             self.assertNotIn("project_id",json.loads(config.read_text())["projects"]["demo"])
             first=self.cli(root,"inspect","--config",config,"--project","demo","--state",state,"--html","--through","2026-11-08")
             self.assertEqual(first["view"]["consumption"]["tokens"],165)

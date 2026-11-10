@@ -5,7 +5,60 @@ roots and checksum-bound files it names are read. Keep config, source paths,
 receipts and decisions private. There is no provider-wide discovery and no
 automatic upstream write.
 
-## Direct Codex source (recommended)
+## Version and measurement scope
+
+Published 1.0.1 provides the WSL/Codex project workflow described below. Local
+1.2.0 adds a declared stdio MCP interface to device reporting with independent
+Codex and Claude sources, together or separately. It accepts explicit device
+configs only, not the legacy external-consumer route described later in this
+document. All plugin commands use the declared tools, not CLI fallback. See
+[MCP boundaries](MCP_SERVER.md) and [human-controlled native setup](native-candidate.md).
+
+The enabled plugin can start the server through the operator-selected trusted
+absolute Python executable, but startup reads no usage. Preview/apply plan hashes
+guard scope and stale config bytes; they are not authenticated consent. Report
+plans list Codex roots, project mappings, UTC windows, private output paths, and
+possible SQLite `-wal`/`-shm` writes. The SQLite connection is SQL read-only, not
+a guarantee of zero filesystem writes. Path checks, bounded processing and
+cooperative cancellation do not make the server an OS sandbox.
+
+The candidate's Codex source extracts usage metadata from expressly permitted
+local JSONL roots. Its Claude source receives prospective `claude_code.token.usage`
+metrics over loopback OTLP HTTP/JSON from a separately configured Claude Code
+client. It does not import Claude transcripts or earlier usage. Both require
+explicit configuration; the assistant used for setup does not select the measured
+provider. Ordinary Claude chat and Cowork are not claimed measurement sources.
+
+Synthetic tests establish accounting, deduplication and combined reporting, not
+actual provider delivery or native-client MCP integration. The following live
+results are historical 1.1.x evidence, not a 1.2.0 MCP-path pass.
+One controlled native Windows Codex CLI session has
+been reconciled against its actual log and report. On 2026-11-10 one native
+Claude Code 2.1.287 noninteractive `sdk-cli` turn also matched independent usage
+output to actual OTLP metrics: 500 input plus 13 output, zero cache read/creation.
+Three tandem reports retained 18,769 Codex plus 513 Claude = 19,282 tokens at that
+checkpoint. Later usage can change the total. Claude project attribution stayed
+unassigned, and a recovered collector gap prevents any uninterrupted-capture claim.
+A second actual `sdk-cli` session independently matched 21,744 tokens including
+nonzero cache-read/creation, yielding a later stable checkpoint of 41,026 combined
+tokens. SDK skill/plugin names were retained as the literal `third-party`.
+Plugin report-command loading passed but application execution was denied; direct
+reporting is separate evidence for that earlier call. The corrected installed
+1.1.3 guide subsequently passed the restricted version/help/report workflow;
+its additional session independently reconciled at 19:22:39 UTC on 2026-11-10:
+8 input + 1,398 output + 32,481 cache-read + 18,758 cache-creation = 52,645.
+Eight new delta points brought the store to 16 Claude points with no ingestion
+issues. Three post-export direct reports held 93,671 = 74,902 Claude + 18,769
+Codex, with Claude attribution still unassigned. The plugin's own earlier report
+showed 41,026 before its final export; the later direct refresh required no
+further inference and is not automatic or continuous coverage.
+The current Codex live-test binding contains only that newly created session.
+Ongoing Codex use requires an explicitly permitted source root: the accounting
+cutoff does not prevent reading historical files in a selected root. CLI, desktop
+and IDE launch paths need separate evidence. Native Mac/ARM execution remains
+unverified. See [qualification](qualification.md).
+
+## Direct Codex source (legacy project configuration)
 
 A direct binding has one `kind: codex` source with `permitted: true` and one or
 more explicitly approved JSONL roots. The first live route is Codex CLI on WSL.
