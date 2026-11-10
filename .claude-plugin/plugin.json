@@ -21,5 +21,9 @@
       "command": "${user_config.python_executable}",
       "args": ["-I", "-S", "-B", "${CLAUDE_PLUGIN_ROOT}/native/mcp_server.py"]
     }
-  }
+  },
+  "displayName": "Cherry Meter",
+  "documentationUrl": "https://github.com/josiahH-cf/spend-outcomes/blob/directory/cherry-meter-1.2.0/README.md",
+  "privacyPolicyUrl": "https://github.com/josiahH-cf/spend-outcomes/blob/directory/cherry-meter-1.2.0/PRIVACY.md",
+  "supportUrl": "https://github.com/josiahH-cf/spend-outcomes/issues"
 }
