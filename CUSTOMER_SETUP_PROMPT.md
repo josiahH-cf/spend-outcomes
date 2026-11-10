@@ -4,7 +4,11 @@ This prompt preserves the published 1.0.1 project workflow. It configures Codex
 measurement only, even when Claude Code is the assistant executing it. It is not
 the 1.2.0 declared-MCP plugin setup guide. For that candidate use
 `commands/setup.md` and `docs/MCP_SERVER.md` from its matching source checkout.
-Configure an explicit trusted, already installed absolute Python 3.10+ executable.
+The candidate's interpreter default is `python` on the host PATH, not a trust
+check; a fresh enabled plugin may start it before an override is configured.
+Before enabling, verify trusted installed Python 3.10+, preferably by configuring
+its explicit verified absolute path. Native qualification used that absolute
+override, not an unconfigured PATH default.
 All current plugin commands use only declared MCP tools: this legacy shell prompt
 is never a fallback for a missing or held MCP operation. Helper installation is
 a separate human-controlled task described in `docs/native-candidate.md`.

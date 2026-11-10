@@ -9,9 +9,13 @@ for their apps.
 
 ## What the local engine handles
 
-The enabled plugin can start its declared local stdio MCP server using the
-operator-selected absolute path to a trusted, already installed Python 3.10+
-executable. Startup loads bundled code but reads no usage or device config.
+The enabled plugin can start its declared local stdio MCP server. The interpreter
+setting defaults to `python`, resolved through the host's PATH without verifying
+its trust or version. A fresh enabled plugin may launch it before an override is
+set. Before enabling, the operator must verify a trusted existing Python 3.10+
+runtime, preferably by supplying its verified absolute path. The documented
+server behavior assumes that trusted runtime, not an arbitrary PATH executable.
+Startup loads bundled code but reads no usage or device config.
 The server itself downloads nothing, starts no child process or receiver, and
 makes no network requests. The independently installed metrics helper is a
 separate human-controlled component; enabling the plugin does not install it.

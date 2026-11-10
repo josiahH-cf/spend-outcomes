@@ -7,9 +7,13 @@ checkout dependency.
 
 ## Install and execution boundaries
 
-Version 1.2.0 declares the `cherry-meter` stdio MCP server. The operator must
-select the verified absolute path of a trusted, already installed Python 3.10+
-executable in `userConfig.python_executable`. The host launches it directly with
+Version 1.2.0 declares the `cherry-meter` stdio MCP server.
+`userConfig.python_executable` defaults to `python` resolved through the host's
+PATH, not a verified runtime. A fresh enabled plugin may start it before an
+override is configured. Before enabling, verify a trusted existing Python 3.10+
+runtime, preferably by setting its verified absolute path. Native qualification
+used the explicit absolute override, not unconfigured PATH startup.
+The host launches the configured executable directly with
 `-I -S -B` and the contained `native/mcp_server.py`. The server can start with the
 enabled plugin, but startup reads no usage or device config. It makes no network
 requests and starts no child process or collector.

@@ -12,7 +12,8 @@
     "python_executable": {
       "type": "string",
       "title": "Existing Python 3.10+ executable",
-      "description": "Select the verified absolute path of a trusted installed Python 3.10+ executable. The host launches this executable directly. No software is downloaded or runtime guessed.",
+      "description": "Default python uses host executable search rules, including PATH, and is not a trust check. Before enabling, verify trusted Python 3.10+ or override with its verified absolute path. No runtime is downloaded.",
+      "default": "python",
       "required": true
     }
   },

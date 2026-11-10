@@ -5,8 +5,10 @@ for public bug reports and setup questions. This route promises no response time
 
 ## Version 1.2.0 plugin checks
 
-1. Read [MCP prerequisites](MCP_SERVER.md). Select a verified absolute path to a
-   trusted, already installed Python 3.10+ executable in plugin configuration.
+1. Read [MCP prerequisites](MCP_SERVER.md). The setting defaults to `python` on
+   the host PATH, without verifying trust or version; enabling a fresh plugin
+   may launch it before an override is set. Before enabling, verify trusted
+   existing Python 3.10+, preferably by setting its verified absolute path.
    If it is missing or cannot start, stop at that prerequisite. Do not download
    a runtime, guess a path or change OS policy.
 2. Use the declared `cherry_meter_info` tool for version and boundaries.

@@ -11,10 +11,17 @@ qualify this new 1.2.0 MCP integration.
 
 ## Interpreter and startup
 
-The plugin manifest declares `userConfig.python_executable` as required. Select
-the verified absolute path of an already installed, trusted Python 3.10+ binary.
-There is no default, download, package installation, runtime discovery or fallback.
-The host directly launches that selected executable with these literal arguments:
+The plugin manifest declares `userConfig.python_executable` as required, with the
+reviewable default `python` and an explicit operator override. That default resolves
+through the host's executable search rules, including PATH; it does not verify
+identity, trust, version or availability.
+An enabled fresh install may launch it before an absolute override is configured.
+Before enabling, verify that the resolved command is an already installed, trusted
+Python 3.10+ binary, or configure its verified absolute path. Qualified native
+testing used an explicit verified absolute interpreter, not the unconfigured
+default. Existing explicit interpreter selections are unchanged by the default.
+No runtime download, package installation or automatic fallback is provided.
+The host directly launches the configured executable with these literal arguments:
 
 `-I -S -B ${CLAUDE_PLUGIN_ROOT}/native/mcp_server.py`
 

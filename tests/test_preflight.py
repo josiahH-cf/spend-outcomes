@@ -1,14 +1,34 @@
 import json
 import os
+from collections.abc import MutableMapping
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from spend_outcomes.export_plan import make_export_plan
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+class EnvironmentTripwire(MutableMapping):
+    """Synthetic environment: any attempted value access or mutation fails."""
+    def __getitem__(self, key):
+        raise AssertionError('export planning must not read environment values')
+
+    def __setitem__(self, key, value):
+        raise AssertionError('export planning must not write environment values')
+
+    def __delitem__(self, key):
+        raise AssertionError('export planning must not delete environment values')
+
+    def __iter__(self):
+        raise AssertionError('export planning must not enumerate the environment')
+
+    def __len__(self):
+        raise AssertionError('export planning must not inspect the environment')
 
 
 class PreflightTests(unittest.TestCase):
@@ -19,16 +39,17 @@ class PreflightTests(unittest.TestCase):
         return json.loads(result.stdout if ok else result.stderr)
 
     def test_export_plan_does_not_read_or_change_environment(self):
-        before = dict(os.environ)
-        for entrypoint in ('cli', 'vscode', 'desktop'):
-            result = make_export_plan(4319, entrypoint)
-            self.assertFalse(result['applied'])
-            self.assertFalse(result['settings_read'])
-            self.assertEqual(result['proposed_environment']['OTEL_LOGS_EXPORTER'], 'none')
-            self.assertEqual(result['proposed_environment']['OTEL_TRACES_EXPORTER'], 'none')
-            self.assertIn('OTEL_EXPORTER_OTLP_HEADERS', result['must_be_absent_from_effective_configuration'])
-            self.assertIn('BETA_TRACING_ENDPOINT', result['must_be_absent_from_effective_configuration'])
-        self.assertEqual(before, dict(os.environ))
+        # Substitute the object, not its real contents. No credential-valued
+        # environment snapshot is taken. Read/write attempts fail immediately.
+        with patch('os.environ', EnvironmentTripwire()):
+            for entrypoint in ('cli', 'vscode', 'desktop'):
+                result = make_export_plan(4319, entrypoint)
+                self.assertFalse(result['applied'])
+                self.assertFalse(result['settings_read'])
+                self.assertEqual(result['proposed_environment']['OTEL_LOGS_EXPORTER'], 'none')
+                self.assertEqual(result['proposed_environment']['OTEL_TRACES_EXPORTER'], 'none')
+                self.assertIn('OTEL_EXPORTER_OTLP_HEADERS', result['must_be_absent_from_effective_configuration'])
+                self.assertIn('BETA_TRACING_ENDPOINT', result['must_be_absent_from_effective_configuration'])
         self.assertEqual(self.cli('export-plan')['status'], 'review_required')
 
     def test_synthetic_reviewer_workflow(self):

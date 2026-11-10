@@ -39,6 +39,15 @@ class CandidatePackage(unittest.TestCase):
         self.assertEqual(manifest["author"], {"name": "Josiah Hunter"})
         self.assertNotIn("hooks", manifest)
         self.assertEqual(set(manifest['mcpServers']), {'cherry-meter'})
+        option = manifest['userConfig']['python_executable']
+        self.assertEqual(option['default'], 'python')
+        self.assertTrue(option['required'])
+        self.assertIn('not a trust check', option['description'])
+        self.assertEqual(manifest['mcpServers']['cherry-meter']['args'],
+            ['-I', '-S', '-B', '${CLAUDE_PLUGIN_ROOT}/native/mcp_server.py'])
+        self.assertFalse(any(name.startswith('tests/') for name in contents))
+        self.assertIn('spend_outcomes/mcp.py', contents)
+        self.assertIn('native/mcp_server.py', contents)
 
     def test_commands_use_only_declared_mcp_tools(self):
         for name in ("setup", "demo", "report", "checkpoint", "doctor"):

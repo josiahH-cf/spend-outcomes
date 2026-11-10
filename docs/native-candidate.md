@@ -8,8 +8,12 @@ The package is independent of Agent Telemetry. Do not connect its database, regi
 
 ## Plugin execution boundary
 
-Configure the explicit absolute path of a trusted, already installed Python
-3.10+ executable. The host runs the declared `cherry-meter` stdio MCP server
+The interpreter setting defaults to `python` on the host PATH, which is not a
+trust or version check. A fresh enabled plugin may start that default before an
+override is configured. Before enabling, verify trusted installed Python 3.10+,
+preferably by configuring its explicit absolute path. The qualified native
+workflow used that absolute override; unconfigured PATH startup remains unqualified.
+The host runs the declared `cherry-meter` stdio MCP server
 with that executable and `-I -S -B`. It can start with the enabled plugin but reads
 no usage or device config at startup. All five plugin commands call only the
 declared tools. They must not execute the native CLI, start the helper, call a

@@ -14,8 +14,11 @@ configs only, not the legacy external-consumer route described later in this
 document. All plugin commands use the declared tools, not CLI fallback. See
 [MCP boundaries](MCP_SERVER.md) and [human-controlled native setup](native-candidate.md).
 
-The enabled plugin can start the server through the operator-selected trusted
-absolute Python executable, but startup reads no usage. Preview/apply plan hashes
+The enabled plugin can start the server through the configured interpreter. Its
+`python` default is resolved through the host PATH and is not trust-verified;
+before enabling, verify trusted Python 3.10+ or set its verified absolute path.
+The qualified native path used the absolute override. Server startup reads no
+usage. Preview/apply plan hashes
 guard scope and stale config bytes; they are not authenticated consent. Report
 plans list Codex roots, project mappings, UTC windows, private output paths, and
 possible SQLite `-wal`/`-shm` writes. The SQLite connection is SQL read-only, not

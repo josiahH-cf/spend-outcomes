@@ -67,6 +67,10 @@ def collect_source(root):
         "args": ["-I", "-S", "-B", "${CLAUDE_PLUGIN_ROOT}/native/mcp_server.py"]}}
     if manifest.get('mcpServers') != expected:
         raise ValueError("candidate must declare only the isolated contained MCP server")
+    python_option = manifest.get('userConfig', {}).get('python_executable', {})
+    if (python_option.get('type') != 'string' or python_option.get('required') is not True
+            or python_option.get('default') != 'python'):
+        raise ValueError("Python option must declare its reviewable python default and retain the explicit override")
     return contents
 
 

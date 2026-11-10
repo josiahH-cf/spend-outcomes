@@ -11,7 +11,10 @@ release. Do not submit that default branch as the new plugin.
 
 Use the repository root as the plugin path after publication. The contained
 readable runtime includes a declared local stdio MCP server, started by the host
-with an explicitly selected trusted absolute Python 3.10+ executable. It can
+with the configured interpreter. The default `python` resolves through the host
+PATH and is not trust-verified. A fresh enabled install may launch it before an
+override is set; verify trusted Python 3.10+ before enabling, preferably with its
+explicit verified absolute path. The qualified native test used that override. It can
 start with the enabled plugin, but reads no usage at startup. All plugin commands
 use only declared MCP tools; helper installation is separate and human controlled.
 See [MCP contract](MCP_SERVER.md), [native helper setup](native-candidate.md),
@@ -70,6 +73,21 @@ acceptance. Do not infer that a prior approval automatically covers a changed
 architecture or new attestations.
 
 ## Portal preparation and remaining steps
+
+Initial validation of commit `2546538d096b0c61bf7f59277e47ab1facef4a17`
+reported one blocking interpreter-default finding, three reviewer holds and
+four warnings. The holds concerned a dynamic MCP command, Python source the
+scanner did not follow, and a credential heuristic combining a development
+test's environment snapshot with that dynamic command. The warnings concerned
+the missing icon and the three Directory-only URL fields. A warning is not a
+failed native test, and a hold is not approval or rejection.
+
+The remediation keeps version 1.2.0 and the repository-root plugin path. It adds
+an explicit, documented `python` default and changes the preflight test to a
+synthetic no-environment-access guard. Runtime code and existing absolute
+interpreter overrides are unchanged. Development tests remain public in place;
+no nested package is used to hide a finding. The changed source must be validated
+again. Do not claim these edits clear the scan or avoid manual Python review.
 
 A local browser draft was prepared with no existing submission found. No
 compliance box was checked and no submission was completed. Recheck portal state

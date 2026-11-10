@@ -8,8 +8,11 @@ eligibility are separate.
 
 ## Current execution gates (2026-11-10)
 
-The 1.2.0 implementation declares six MCP tools and requires an explicitly
-selected trusted absolute Python 3.10+ executable, launched with `-I -S -B`.
+The 1.2.0 implementation declares six MCP tools. The interpreter setting now
+defaults to `python` on the host PATH, which is not trust-verified and can launch
+on a fresh enabled install before an override is configured. Before enabling,
+verify trusted Python 3.10+, preferably with its explicit absolute path. The
+qualified native path used that override. Launch arguments remain `-I -S -B`.
 The server can start with the enabled plugin but reads no usage automatically.
 All plugin commands are MCP-only. Installing/managing the native helper and
 changing exporter settings remain separate human-controlled tasks.
@@ -52,6 +55,13 @@ Source publication for review must bind the final audited tree to the dedicated
 `directory/cherry-meter-1.2.0` branch and verify the public URLs. The browser draft
 is unsubmitted and every compliance checkbox remains unchecked. No 1.1.3 branch
 was published. Source publication is not Directory acceptance.
+
+The initial portal validation blocked the missing interpreter default and held
+the dynamic command, unread-through Python source and a development-test
+credential heuristic. Keep the repository-root plugin path and version 1.2.0.
+Audit and test the explicit default plus synthetic no-environment-access test
+guard, publish only the reviewed forward change, and revalidate its exact commit.
+Do not move source merely to suppress holds or promise automated scan clearance.
 
 ## Historical 1.1.x deployment and test evidence
 

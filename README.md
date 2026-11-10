@@ -6,9 +6,13 @@ This source candidate provides device-local Codex and prospective Claude metrics
 reports through a declared, readable-source MCP server. All five plugin commands
 call only its tools. The server can start with the enabled plugin, but reads no
 usage or device config at startup. It starts no receiver or child process,
-downloads nothing, and makes no network requests. Select the verified absolute
-path of a trusted, already installed Python 3.10+ executable in plugin settings;
-the host launches that executable directly. No runtime is guessed or bundled.
+downloads nothing, and makes no network requests. The interpreter setting defaults
+to `python`, resolved through the host's PATH; that default is not a trust or
+version check. A fresh enabled plugin may launch it before an override is set.
+Before enabling, verify that it resolves to trusted Python 3.10+, preferably by
+setting its verified absolute path in plugin settings. No runtime is bundled or
+downloaded. Native qualification used an explicit trusted absolute override, not
+an unconfigured PATH default.
 
 Version 1.2.0 changes the plugin execution path. It is a review candidate, not a
 stable release or an approved Directory listing. One controlled native Windows

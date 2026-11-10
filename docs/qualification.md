@@ -8,8 +8,11 @@ were read for these controlled tests.
 
 ## Current 1.2.0 declared-MCP status (2026-11-10)
 
-Version 1.2.0 changes plugin execution to six declared stdio MCP tools. It requires
-an explicit trusted existing absolute Python 3.10+ executable, launched with
+Version 1.2.0 changes plugin execution to six declared stdio MCP tools. The
+interpreter setting defaults to `python` resolved through the host PATH, without
+a trust or version check. A fresh enabled install may launch it before an
+override is configured. Before enabling, verify trusted installed Python 3.10+,
+preferably with an explicit verified absolute path. The host launches it with
 `-I -S -B`. The server can start with the enabled plugin but reads no usage or
 device config at startup. The native collector remains a separate human-controlled
 helper. All plugin commands use only MCP tools, without shell/CLI fallback.
@@ -66,6 +69,17 @@ below are retained rather than being relabeled as MCP evidence.
 Source publication for review is separate from Directory validation, security
 scanning and acceptance. Portal compliance attestations remain unchecked;
 no submission or acceptance is established by these tests.
+
+## Minimal portal remediation, still 1.2.0
+
+The native-client qualification above used the explicit absolute interpreter
+override before the manifest default was added. That installed override and the
+runtime/command code remain unchanged; fresh unconfigured PATH resolution is
+not qualified by that result. The root plugin path and version remain unchanged.
+The default and synthetic preflight-test guard respond to the initial portal
+findings described in [Directory readiness](directory-readiness.md). They need
+aggregate review and final exact-source tests, followed by portal revalidation.
+No finding is considered resolved merely because a source edit was made.
 
 ## Historical 1.1.3 deployment and verification (2026-11-10)
 
