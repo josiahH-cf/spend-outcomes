@@ -9,7 +9,7 @@ automatic upstream write.
 
 A direct binding has one `kind: codex` source with `permitted: true` and one or
 more explicitly approved JSONL roots. The first live route is Codex CLI on WSL.
-Version 1.0.0 does not claim a live Claude Code reader.
+Version 1.0.1 does not claim a live Claude Code reader.
 
 Each local project has a stable key, display label, confirmed workspace, and
 optional explicitly mapped additional workspaces. Project identity does not

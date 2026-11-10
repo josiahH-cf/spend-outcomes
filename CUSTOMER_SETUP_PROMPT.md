@@ -1,9 +1,12 @@
-# Spend & Outcomes customer setup prompt
+# Cherry Meter customer setup prompt
 
-You are helping me configure the versioned Spend & Outcomes archive that I
+You are helping me configure the versioned Cherry Meter archive that I
 downloaded on WSL. Work only inside the boundaries below. Do not install system
 packages, discover log roots, broaden permissions, edit my project repository,
 or use an external orchestration service or Agent Telemetry.
+
+The product was previously called Spend & Outcomes. Its archive is still named
+`spend-outcomes.pyz`, and existing config and state paths remain valid.
 
 Guide me one decision at a time:
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic Spend & Outcomes archive builder.
+"""Deterministic Cherry Meter archive builder.
 
 Despite the compatibility module name used by older product tests, this file has
 no delivery or publication capability.
