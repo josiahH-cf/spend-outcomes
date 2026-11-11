@@ -1,7 +1,7 @@
 {
   "name": "cherry-meter",
-  "version": "1.2.0",
-  "description": "Device-local Codex and prospective Claude metrics reports through a declared, source-readable MCP server. Requires existing Python 3.10+.",
+  "version": "1.2.1-rc.1",
+  "description": "Windows AMD64 / Claude Code preview: device-local Codex and prospective Claude metrics through a declared readable-source MCP server. Existing trusted Python 3.10+ required.",
   "license": "MIT",
   "author": {
     "name": "Josiah Hunter"
@@ -20,11 +20,16 @@
   "mcpServers": {
     "cherry-meter": {
       "command": "${user_config.python_executable}",
-      "args": ["-I", "-S", "-B", "${CLAUDE_PLUGIN_ROOT}/native/mcp_server.py"]
+      "args": [
+        "-I",
+        "-S",
+        "-B",
+        "${CLAUDE_PLUGIN_ROOT}/native/mcp_server.py"
+      ]
     }
   },
-  "displayName": "Cherry Meter",
-  "documentationUrl": "https://github.com/josiahH-cf/spend-outcomes/blob/directory/cherry-meter-1.2.0/README.md",
-  "privacyPolicyUrl": "https://github.com/josiahH-cf/spend-outcomes/blob/directory/cherry-meter-1.2.0/PRIVACY.md",
+  "displayName": "Cherry Meter (Windows preview)",
+  "documentationUrl": "https://github.com/josiahH-cf/spend-outcomes/blob/preview/windows-1.2.1-rc.1/docs/windows-preview.md",
+  "privacyPolicyUrl": "https://github.com/josiahH-cf/spend-outcomes/blob/preview/windows-1.2.1-rc.1/PRIVACY.md",
   "supportUrl": "https://github.com/josiahH-cf/spend-outcomes/issues"
 }

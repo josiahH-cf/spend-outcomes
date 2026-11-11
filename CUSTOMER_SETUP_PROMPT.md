@@ -1,5 +1,10 @@
 # Cherry Meter legacy WSL/Codex archive setup prompt
 
+Current independent distribution: **1.2.1-rc.1 Windows AMD64 / Claude Code preview**.
+See [preview installation and limits](docs/windows-preview.md). The 1.2.0 evidence below is
+historical; it does not establish new platform or workflow qualification.
+The MCP execution and data-handling contract are unchanged.
+
 This prompt preserves the published 1.0.1 project workflow. It configures Codex
 measurement only, even when Claude Code is the assistant executing it. It is not
 the 1.2.0 declared-MCP plugin setup guide. For that candidate use

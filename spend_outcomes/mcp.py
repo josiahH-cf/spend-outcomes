@@ -205,6 +205,14 @@ def plan_result(plan, args):
     return {'plan': plan, 'plan_sha256': identity, 'approval_notice': APPROVAL_NOTICE, 'applied': False}
 
 
+def atomic_write_details(paths):
+    """Describe existing storage effects; these placeholders never drive I/O."""
+    return [{'file': str(path),
+             'persistent_lock_file': str(path.with_name('.' + path.name + '.lock')),
+             'temporary_file_pattern': str(path.with_name('.' + path.name + '.<random>'))}
+            for path in paths]
+
+
 def observer(source, config, days, through, cancel):
     check_cancel(cancel)
     deadline = time.monotonic() + 15
@@ -279,6 +287,14 @@ def execute(name, args, cancel=None):
         plan = {'operation': name, 'config': str(path), 'config_sha256': hashlib.sha256(raw).hexdigest(),
                 'scope': scope(config), 'report_directory': str(output), 'days': days,
                 'through': through, 'html': args.get('html', True)}
+        report_files = [output / '<report-sha256>.json']
+        if plan['html']:
+            report_files.append(output / '<report-sha256>.html')
+        plan['write_details'] = {
+            'atomic_files': atomic_write_details(report_files),
+            'directory_creation': 'The report directory and any missing parent directories on its path.',
+            'possible_sqlite_sidecar_writes': plan['scope']['possible_sqlite_sidecar_writes'],
+            'qualification': 'Report filenames use the generated report digest. Each atomic file leaves an adjacent lock file; adjacent temporary files are normally renamed or removed, but interruption can leave them. SQLite sidecar writes do not change store SQL schema/data.'}
         preview = plan_result(plan, args)
         if preview is not None:
             return preview
@@ -300,6 +316,17 @@ def execute(name, args, cancel=None):
         plan = {'operation': name, 'root': str(root),
                 'creates': ['synthetic-project/', 'synthetic-codex/', 'private-demo-state/', 'demo-config.json'],
                 'real_usage_read': False}
+        state = root / 'private-demo-state'
+        store = state / 'claude-metrics.sqlite3'
+        plan['write_details'] = {
+            'directories': [str(path) for path in (root, root / 'synthetic-project',
+                root / 'synthetic-codex', state, state / 'device-reports')],
+            'atomic_files': atomic_write_details([root / 'synthetic-codex' / 'synthetic.jsonl',
+                root / 'demo-config.json', state / 'device-reports' / '<report-sha256>.json',
+                state / 'device-reports' / '<report-sha256>.html']),
+            'sqlite_store': str(store),
+            'possible_sqlite_sidecar_writes': [str(store) + suffix for suffix in ('-wal', '-shm', '-journal')],
+            'qualification': 'All files are inside the new demo root. SQLite creates a synthetic store and may create, update or remove its WAL, shared-memory and journal files. Atomic files leave adjacent lock files; adjacent temporary files are normally renamed or removed, but interruption can leave them. Report filenames use the generated report digest.'}
         preview = plan_result(plan, args)
         if preview is not None:
             return preview
@@ -325,6 +352,10 @@ def execute(name, args, cancel=None):
         config = validate_config(device.initialize(SimpleNamespace(**values), [], write=False))
         plan = {'operation': name, 'config': str(config_path), 'configuration': config,
                 'creates': [str(config_path)], 'sources_read': False, 'starts_helper': False}
+        plan['write_details'] = {
+            'direct_exclusive_file': str(config_path), 'atomic_files': [],
+            'directory_creation': False, 'sqlite_files': [],
+            'qualification': 'Setup writes the new config directly with exclusive creation. It creates no adjacent lock/temporary files, state directory or SQLite files; interruption can leave a partial new config.'}
         preview = plan_result(plan, args)
         if preview is not None:
             return preview
@@ -395,10 +426,10 @@ def tool(name, description, properties, required=(), read_only=False):
 TOOLS = [
     tool('cherry_meter_info', 'Show version, help and boundaries. Reads no user files.', {}, read_only=True),
     tool('cherry_meter_doctor', 'Read only the exact user-approved device config and path existence. No usage or receiver probe.', {'config': PATH}, ['config'], True),
-    tool('cherry_meter_report', 'Preview exact reads/writes; after actual user approval apply the matching plan. Bounded local metadata reads, private report writes.',
+    tool('cherry_meter_report', 'Preview exact reads/writes; after actual user approval apply the matching plan. Bounded metadata reads; private reports, adjacent lock/temp files, missing output directories and approved SQLite sidecars.',
          {'config': PATH, 'days': {'type': 'integer', 'enum': [7, 30, 90]}, 'through': string(10, pattern=r'^\d{4}-\d{2}-\d{2}$'), 'html': {'type': 'boolean'}, **APPLY}, ['config']),
-    tool('cherry_meter_demo', 'Preview a new synthetic demo directory; apply only after user approval. No real usage or settings read.', {'root': PATH, **APPLY}, ['root']),
-    tool('cherry_meter_setup', 'Preview explicit device configuration; apply only after approval. Creates one new config, reads no usage, starts no helper.',
+    tool('cherry_meter_demo', 'Preview a new synthetic demo directory, fixtures, config, reports, adjacent lock/temp files and SQLite store/sidecars; apply after approval. No real usage or settings read.', {'root': PATH, **APPLY}, ['root']),
+    tool('cherry_meter_setup', 'Preview explicit device configuration; apply after approval. Directly creates one new config, no lock/temp or SQLite files. Reads no usage, starts no helper.',
          {'config': PATH, 'state': PATH, 'project': string(128, pattern=r'^[A-Za-z0-9_.:-]+$'), 'workspace': PATH,
           'additional_workspaces': {'type': 'array', 'items': PATH, 'maxItems': 20},
           'codex_roots': {'type': 'array', 'items': PATH, 'maxItems': 20}, 'claude': {'type': 'boolean'},

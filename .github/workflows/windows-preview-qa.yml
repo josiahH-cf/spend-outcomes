@@ -1,0 +1,97 @@
+name: Windows preview synthetic installation QA
+
+on:
+  push:
+    branches: ['qa/windows-preview-1.2.1-rc.1']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cherry-meter-windows-preview-qa
+  cancel-in-progress: false
+
+jobs:
+  synthetic-install:
+    if: github.repository == 'josiahH-cf/spend-outcomes' && github.ref == 'refs/heads/qa/windows-preview-1.2.1-rc.1'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out this exact QA commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6, verified 2026-11-11
+        with:
+          ref: ${{ github.sha }}
+          path: qa-source
+          persist-credentials: false
+          set-safe-directory: false
+          fetch-depth: 1
+          clean: false
+      - name: Check out the existing public 1.2.0 baseline
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: 2a56314fbb69f0c707a3be18e904d09afc67e1bd
+          path: baseline-source
+          persist-credentials: false
+          set-safe-directory: false
+          fetch-depth: 1
+          clean: false
+      - name: Select exact official Python
+        id: python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6, verified 2026-11-11
+        with:
+          python-version: '3.12.10'
+          architecture: x64
+          check-latest: false
+          update-environment: false
+      - name: Materialize and verify canonical audited source bytes
+        env:
+          PYTHON_EXE: ${{ steps.python.outputs.python-path }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & $env:PYTHON_EXE -I -S -B -m unittest discover -s qa-source/qa -p 'test_*.py' -v
+          if ($LASTEXITCODE -ne 0) { throw 'Source verifier tests failed' }
+          & $env:PYTHON_EXE -I -S -B qa-source/qa/materialize_sources.py `
+            --preview-repo qa-source --baseline-repo baseline-source `
+            --manifest qa-source/qa/expected-source.json --output "$env:RUNNER_TEMP/verified-source"
+          if ($LASTEXITCODE -ne 0) { throw 'Source verification failed' }
+          & $env:PYTHON_EXE -I -S -B "$env:RUNNER_TEMP/verified-source/preview/scripts/build_candidate.py" `
+            --root "$env:RUNNER_TEMP/verified-source/preview" --output "$env:RUNNER_TEMP/preview-plugin"
+          if ($LASTEXITCODE -ne 0) { throw 'Preview build failed' }
+          & $env:PYTHON_EXE -I -S -B "$env:RUNNER_TEMP/verified-source/baseline/scripts/build_candidate.py" `
+            --root "$env:RUNNER_TEMP/verified-source/baseline" --output "$env:RUNNER_TEMP/baseline-plugin"
+          if ($LASTEXITCODE -ne 0) { throw 'Baseline build failed' }
+      - name: Acquire pinned official portable Claude binary without executing an installer
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $target = Join-Path $env:RUNNER_TEMP 'claude-2.1.287.exe'
+          if (Test-Path -LiteralPath $target) { throw 'Unexpected existing prerequisite' }
+          Invoke-WebRequest -Uri 'https://downloads.claude.ai/claude-code-releases/2.1.287/win32-x64/claude.exe' -OutFile $target
+          $expected = '6d5be51f0edfe3429cd1a9885950db31c1e59eb9a2c9a30a47e64179d2ff98b4'
+          if ((Get-Item -LiteralPath $target).Length -ne 247736480) { throw 'Claude size mismatch' }
+          if ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { throw 'Claude checksum mismatch' }
+          $signature = Get-AuthenticodeSignature -LiteralPath $target
+          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch '(^|,\s*)O="?Anthropic,? PBC"?(,|$)') { throw 'Claude publisher signature verification failed' }
+          Write-Output 'Verified official Claude 2.1.287 Windows x64 binary before execution.'
+      - name: Fresh profile install, synthetic MCP and update rollback
+        env:
+          PYTHON_EXE: ${{ steps.python.outputs.python-path }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & $env:PYTHON_EXE -I -S -B qa-source/qa/windows_preview_ci.py `
+            --preview "$env:RUNNER_TEMP/preview-plugin" --baseline "$env:RUNNER_TEMP/baseline-plugin" `
+            --preview-digest ed694f99885f1d9bc3c25f750dcb2e0441f7e0f8fea802a55ca03fa196d26673 `
+            --baseline-digest 0b1ad726bbce6f695339f4c80b56a6c177c1f9f4684d5a90a79205fa4f37dff7 `
+            --claude "$env:RUNNER_TEMP/claude-2.1.287.exe" --python $env:PYTHON_EXE `
+            --work-root "$env:RUNNER_TEMP/cherry-meter-synthetic-qa"
+          if ($LASTEXITCODE -ne 0) { throw 'Synthetic qualification failed' }
+          @'
+          ## Cherry Meter Windows preview qualification
+          Passed on a fresh standard GitHub-hosted Windows x64 admin VM with preinstalled developer tools.
+          Canonical preview package: ed694f99885f1d9bc3c25f750dcb2e0441f7e0f8fea802a55ca03fa196d26673.
+          Fresh unauthenticated profile install, explicit Python 3.12.10, Claude 2.1.287, direct stdio synthetic 300-token report, and 1.2.0 to preview to 1.2.0 to preview lifecycle.
+          Not stock consumer Windows 11/non-admin, authenticated Claude inference, public Git marketplace acquisition, Mac/ARM, or continuous capture qualification.
+          No release, deployment, artifact upload or production settings change was performed.
+          '@ >> $env:GITHUB_STEP_SUMMARY

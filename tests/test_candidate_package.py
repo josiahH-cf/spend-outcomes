@@ -7,6 +7,8 @@ import sys
 import tempfile
 import unittest
 
+from spend_outcomes import __version__
+
 from scripts.build_candidate import build, collect_source, REQUIRED
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -78,7 +80,7 @@ class CandidatePackage(unittest.TestCase):
             unrelated.mkdir()
             result = subprocess.run([sys.executable, "-B", str(first / "native/launch.py"), "--version"], cwd=unrelated, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertRegex(result.stdout.strip(), r"^\d+\.\d+\.\d+$")
+            self.assertEqual(result.stdout.strip(), __version__)
             for command in ("device-init", "device-inspect", "doctor", "collect", "checkpoint"):
                 result = subprocess.run([sys.executable, "-B", str(first / "native/launch.py"), command, "--help"], cwd=unrelated, capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stderr)

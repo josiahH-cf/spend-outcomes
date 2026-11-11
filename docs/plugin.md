@@ -1,5 +1,10 @@
 # Cherry Meter 1.2.0 source plugin candidate
 
+Current independent distribution: **1.2.1-rc.1 Windows AMD64 / Claude Code preview**.
+See [preview installation and limits](windows-preview.md). The 1.2.0 evidence below is
+historical; it does not establish new platform or workflow qualification.
+The MCP execution and data-handling contract are unchanged.
+
 The repository root is the plugin root. Keep `.claude-plugin/plugin.json`,
 `commands/`, `native/` and `spend_outcomes/` together. The candidate contains
 readable Python and no downloaded runtime, opaque archive or external source
