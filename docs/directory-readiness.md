@@ -1,30 +1,39 @@
-# Directory preparation: 1.2.0 declared-MCP candidate
+# Directory status and independent Windows preview
 
-## Current status
+## Current status (2026-11-11)
 
-Version 1.2.0 is a source candidate for review, not a stable release or an approved
-Directory listing. Its dedicated publication branch is
-`directory/cherry-meter-1.2.0`; verify the actual remote commit before submission.
-No `directory/cherry-meter-1.1.3` branch was published.
-The public repository's default `main` branch still contains the legacy 1.0.1
-release. Do not submit that default branch as the new plugin.
+The 1.2.0 source was published for Directory review at
+`2a56314fbb69f0c707a3be18e904d09afc67e1bd` on
+`directory/cherry-meter-1.2.0`, with the repository root as plugin path.
+Validation passed with zero blockers, four warnings and three policy holds.
+The subsequent submission was automatically refused because local MCP/file
+capabilities require an eligible verified organization. It was not accepted or
+listed. Preserve the submission and source branch; no resubmission is part of
+the independent preview work.
 
-Use the repository root as the plugin path after publication. The contained
-readable runtime includes a declared local stdio MCP server, started by the host
-with the configured interpreter. The default `python` resolves through the host
-PATH and is not trust-verified. A fresh enabled install may launch it before an
-override is set; verify trusted Python 3.10+ before enabling, preferably with its
-explicit verified absolute path. The qualified native test used that override. It can
-start with the enabled plugin, but reads no usage at startup. All plugin commands
-use only declared MCP tools; helper installation is separate and human controlled.
-See [MCP contract](MCP_SERVER.md), [native helper setup](native-candidate.md),
-[data handling](../PRIVACY.md) and [support](support.md).
+Version **1.2.1-rc.1** is a separate Windows AMD64 / Claude Code preview using a
+project-owned marketplace. See [preview installation](windows-preview.md).
+Self-hosted distribution does not change the Directory's eligibility decision,
+confer verification or authorize bypassing an organization's plugin policies.
+The public default `main` branch and stable releases remain at the earlier
+release line. Do not present the preview as a new stable cross-platform release.
 
-The verified public support route is the
-[repository issue tracker](https://github.com/josiahH-cf/spend-outcomes/issues).
-Policy and documentation pages are prepared locally. Publish and verify their
-actual HTTPS URLs before adding `privacyPolicyUrl`, `supportUrl` and
-`documentationUrl` to the manifest. A prepared URL is not a live page.
+The contained readable runtime declares a local stdio MCP server. All plugin
+commands use only its tools; helper installation is separate and operator
+controlled. The interpreter default `python` follows host executable search
+rules, without checking trust or version. A fresh enabled install may launch it
+before an override is configured. Verify trusted Python 3.10+ before enabling,
+preferably through its verified absolute path. The native-qualified workflow
+used that explicit override. See [MCP contract](MCP_SERVER.md),
+[native setup](native-candidate.md), [data handling](../PRIVACY.md) and
+[support](support.md).
+
+The issue tracker and the 1.2.0 privacy/documentation pages were published and
+verified before their manifest URLs were added. The preview manifest names its intended version-specific documentation and
+privacy pages. Verify that those exact resources resolve to the audited source
+immediately after publication, before distributing an install recommendation.
+The matching documentation is included in the source. No private device config, reports or session identifiers belong
+in public support requests.
 
 ## Reviewer examples
 
@@ -72,57 +81,23 @@ applicable scope distinct from technical validation and final Directory
 acceptance. Do not infer that a prior approval automatically covers a changed
 architecture or new attestations.
 
-## Portal preparation and remaining steps
+## Scan and submission record
 
-Initial validation of commit `2546538d096b0c61bf7f59277e47ab1facef4a17`
-reported one blocking interpreter-default finding, three reviewer holds and
-four warnings. The holds concerned a dynamic MCP command, Python source the
-scanner did not follow, and a credential heuristic combining a development
-test's environment snapshot with that dynamic command. The warnings concerned
-the missing icon and the three Directory-only URL fields. A warning is not a
-failed native test, and a hold is not approval or rejection.
+Initial validation of `2546538d096b0c61bf7f59277e47ab1facef4a17` found one
+interpreter-default blocker, three policy holds and four warnings. The 1.2.0
+remediation documented the `python` default and replaced the development test's
+real environment snapshot with a synthetic no-access guard. Runtime code and
+existing absolute interpreter overrides were unchanged; development tests
+remained public at the repository root.
 
-The remediation keeps version 1.2.0 and the repository-root plugin path. It adds
-an explicit, documented `python` default and changes the preflight test to a
-synthetic no-environment-access guard. Runtime code and existing absolute
-interpreter overrides are unchanged. Development tests remain public in place;
-no nested package is used to hide a finding. The changed source must be validated
-again. Do not claim these edits clear the scan or avoid manual Python review.
+Revalidation of `2a56314fbb69f0c707a3be18e904d09afc67e1bd` had no blockers.
+Four warnings remained: no icon and the three Directory-only URL fields. Three
+holds remained for interpreter/script manual review and a heuristic combining
+the synthetic environment guard with documentation containing an HTTP string.
+A passing validator did not clear those holds or establish organizational
+eligibility. The later automated eligibility refusal is the current result.
 
-A local browser draft was prepared with no existing submission found. No
-compliance box was checked and no submission was completed. Recheck portal state
-before continuing; drafts and duplicate submissions count toward limits.
-
-1. Bind integrated source review and the scoped native-client result to the
-   final revision. Do not replace historical evidence with broader claims.
-2. Publish the reviewed source to a dedicated version-matching branch, preserving
-   existing releases. Verify its exact commit, public links and applicable checks.
-3. Reuse the draft for this repository/root. Enter the final branch explicitly,
-   especially when its name contains a slash. Run Validate again after every
-   source change; results apply only to the commit read.
-4. Confirm listing ownership and a reachable publisher contact without inferring
-   legal identity from a LICENSE author or a GitHub display name.
-5. Review data handling. The plugin reads and stores selected local metadata.
-   Tool plans/results may enter Claude's hosted conversation even though the MCP
-   server makes no network requests. Local state is retained until operator
-   deletion, potentially longer than 30 days; that is not a hosted retention
-   service. The listing is not intended for people under 18.
-6. Keep all attestations unchecked until their exact facts and authority are
-   settled. The portal asks whether the plugin executes code outside declared
-   MCP servers. The redesign is intended to move plugin operations into the
-   declared server, but implementation intent is not an accepted attestation.
-   Review the actual source, runtime behavior and applicable approval first.
-7. Review [Directory Terms](https://support.claude.com/en/articles/13145338-anthropic-software-directory-terms)
-   and compliance requirements. Prepared update preferences are scheduled checks
-   only and auto-publish off; do not create a webhook or expand permissions.
-8. Submit only after required approval, then follow security/reviewer outcomes
-   and a separate publication decision. Validation alone does not make it live.
-
-Official workflow: [submit a plugin](https://claude.com/docs/plugins/submit).
-Structural and security checks: [pre-submission checklist](https://claude.com/docs/plugins/pre-submission-checklist).
-
-## Updates remain separate
-
-Plugin synchronization does not update a separately registered helper. Retain
-private state, verify the helper's exact runtime and startup path separately,
-and do not remove a runtime directory still referenced by a startup definition.
+Any future Directory action must use the actual current publisher eligibility
+and explicit authority for the required acknowledgments. Existing reported
+policy correspondence is distinct from Directory acceptance. Do not alter the
+submitted source or create duplicate submissions merely to suppress a finding.

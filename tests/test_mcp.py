@@ -79,12 +79,128 @@ class MCPTools(unittest.TestCase):
         preview = mcp.execute('cherry_meter_setup', args)
         self.assertFalse(Path(args['config']).exists())
         self.assertFalse(Path(args['state']).exists())
-        result = mcp.execute('cherry_meter_setup', {**args, 'apply': True, 'expected_plan_sha256': preview['plan_sha256']})
+        details = preview['plan']['write_details']
+        self.assertEqual(details['direct_exclusive_file'], args['config'])
+        self.assertEqual(details['atomic_files'], [])
+        self.assertEqual(details['sqlite_files'], [])
+        self.assertFalse(details['directory_creation'])
+        before = set(self.root.rglob('*'))
+        with patch('tempfile.mkstemp', side_effect=AssertionError('setup must not create temporary files')), patch('spend_outcomes.storage.file_lock', side_effect=AssertionError('setup must not create lock files')), patch('sqlite3.connect', side_effect=AssertionError('setup must not open SQLite')):
+            result = mcp.execute('cherry_meter_setup', {**args, 'apply': True, 'expected_plan_sha256': preview['plan_sha256']})
+        self.assertEqual(set(self.root.rglob('*')) - before, {Path(args['config'])})
         self.assertFalse(result['sources_read'])
         self.assertFalse(Path(args['state']).exists())
         self.assertNotIn('collector_argv', result)
         with self.assertRaises(mcp.Held):
             apply('cherry_meter_setup', args)
+
+    def test_demo_and_report_plans_describe_actual_ancillary_files(self):
+        root = self.root / 'demo'
+        args = {'root': str(root)}
+        preview = mcp.execute('cherry_meter_demo', args)
+        self.assertFalse(root.exists())
+        details = preview['plan']['write_details']
+        store = root / 'private-demo-state' / 'claude-metrics.sqlite3'
+        self.assertEqual(details['sqlite_store'], str(store))
+        self.assertEqual(details['possible_sqlite_sidecar_writes'],
+                         [str(store) + suffix for suffix in ('-wal', '-shm', '-journal')])
+        temporary_files = []
+        sqlite_files = set()
+        original_mkstemp = tempfile.mkstemp
+        original_connect = sqlite3.connect
+
+        def remember_sqlite_files():
+            sqlite_files.update(str(path) for path in store.parent.glob(store.name + '*'))
+
+        class RecordingConnection(sqlite3.Connection):
+            def execute(self, *args, **kwargs):
+                result = super().execute(*args, **kwargs)
+                remember_sqlite_files()
+                return result
+
+            def executescript(self, *args, **kwargs):
+                result = super().executescript(*args, **kwargs)
+                remember_sqlite_files()
+                return result
+
+            def close(self):
+                remember_sqlite_files()
+                return super().close()
+
+        def connect(*args, **kwargs):
+            return original_connect(*args, **kwargs, factory=RecordingConnection)
+
+        def mkstemp(*args, **kwargs):
+            descriptor, path = original_mkstemp(*args, **kwargs)
+            temporary_files.append(Path(path))
+            return descriptor, path
+
+        with patch('tempfile.mkstemp', side_effect=mkstemp), patch('sqlite3.connect', side_effect=connect):
+            result = mcp.execute('cherry_meter_demo', {**args, 'apply': True,
+                'expected_plan_sha256': preview['plan_sha256']})
+        identity = Path(result['receipt']).stem
+        atomic_files = details['atomic_files']
+        self.assertEqual(len(atomic_files), 4)
+        self.assertEqual(len(temporary_files), 4)
+        expected_files = {str(store), *details['possible_sqlite_sidecar_writes']}
+        for entry in atomic_files:
+            target = Path(entry['file'].replace('<report-sha256>', identity))
+            lock = Path(entry['persistent_lock_file'].replace('<report-sha256>', identity))
+            pattern = Path(entry['temporary_file_pattern'].replace('<report-sha256>', identity))
+            self.assertTrue(target.is_file())
+            self.assertTrue(lock.is_file())
+            self.assertTrue(any(path.parent == pattern.parent and
+                path.name.startswith(pattern.name.replace('<random>', '')) for path in temporary_files))
+            expected_files.update((str(target), str(lock)))
+        self.assertTrue(all(not path.exists() for path in temporary_files))
+        self.assertLessEqual({str(path) for path in root.rglob('*') if path.is_file()}, expected_files)
+        self.assertEqual({str(root), *(str(path) for path in root.rglob('*') if path.is_dir())}, set(details['directories']))
+        self.assertLessEqual(sqlite_files, {str(store), *details['possible_sqlite_sidecar_writes']})
+        self.assertTrue({str(store) + '-wal', str(store) + '-shm'}.issubset(sqlite_files))
+
+        report_args = {'config': result['config'], 'html': False}
+        report_preview = mcp.execute('cherry_meter_report', report_args)
+        report_details = report_preview['plan']['write_details']
+        self.assertEqual(len(report_details['atomic_files']), 1)
+        self.assertEqual(report_details['possible_sqlite_sidecar_writes'], [str(store) + '-wal', str(store) + '-shm'])
+        before = {path for path in root.rglob('*') if path.is_file()}
+        database_before = store.read_bytes()
+        temporary_files.clear()
+        with patch('tempfile.mkstemp', side_effect=mkstemp), patch('sqlite3.connect', side_effect=connect):
+            report_result = mcp.execute('cherry_meter_report', {**report_args, 'apply': True,
+                'expected_plan_sha256': report_preview['plan_sha256']})
+        receipt = Path(report_result['receipt'])
+        entry = report_details['atomic_files'][0]
+        lock = Path(entry['persistent_lock_file'].replace('<report-sha256>', receipt.stem))
+        self.assertEqual(Path(entry['file'].replace('<report-sha256>', receipt.stem)), receipt)
+        self.assertEqual({path for path in root.rglob('*') if path.is_file()} - before, {receipt, lock})
+        self.assertEqual(len(temporary_files), 1)
+        self.assertEqual(temporary_files[0].parent, receipt.parent)
+        self.assertTrue(temporary_files[0].name.startswith('.' + receipt.name + '.'))
+        self.assertFalse(temporary_files[0].exists())
+        self.assertIsNone(report_result['html'])
+        self.assertEqual(database_before, store.read_bytes())
+
+    def test_ancillary_descriptions_are_bound_into_approval_hashes(self):
+        workspace = self.root / 'work'; workspace.mkdir()
+        setup = {'config': str(self.root / 'device.json'), 'state': str(self.root / 'state'),
+                 'project': 'test', 'workspace': str(workspace), 'device_name': 'Synthetic',
+                 'tracking_start': '2026-11-01T00:00:00+00:00', 'claude': True}
+        demo = self.demo()
+        for name, arguments in (
+                ('cherry_meter_setup', setup),
+                ('cherry_meter_demo', {'root': str(self.root / 'another-demo')}),
+                ('cherry_meter_report', {'config': demo['config']})):
+            preview = mcp.execute(name, arguments)
+            old_plan = copy.deepcopy(preview['plan'])
+            old_plan.pop('write_details')
+            old_hash = mcp.digest(old_plan)
+            self.assertNotEqual(old_hash, preview['plan_sha256'])
+            before = {path: path.read_bytes() for path in self.root.rglob('*') if path.is_file()}
+            with self.assertRaises(mcp.Held):
+                mcp.execute(name, {**arguments, 'apply': True, 'expected_plan_sha256': old_hash})
+            after = {path: path.read_bytes() for path in self.root.rglob('*') if path.is_file()}
+            self.assertEqual(before, after)
 
     def test_changed_config_rejects_stale_report_and_checkpoint(self):
         demo = self.demo(); args = {'config': demo['config']}

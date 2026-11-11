@@ -1,7 +1,20 @@
 # Cherry Meter candidate data handling
 
-This describes the Cherry Meter 1.2.0 source candidate, not an approved Directory
-listing. Support is available through the
+Current independent distribution: **1.2.1-rc.1 Windows AMD64 / Claude Code preview**.
+See [preview installation and limits](docs/windows-preview.md). The 1.2.0 evidence below is
+historical; it does not establish new platform or workflow qualification.
+This execution/data-handling contract applies to both 1.2.0 and 1.2.1-rc.1.
+The preview does not expand its authorized reads, writes or execution.
+
+The 1.2.1-rc.1 plans also describe existing ancillary writes. Report/demo output
+can create adjacent persistent lock files and temporary files in approved
+output directories; interrupted writes can leave temporary files. Demo creates
+its own synthetic SQLite store and possible journal/WAL/shared-memory sidecars.
+Setup directly creates only its config, with no lock/temp/store side effects,
+but interruption can leave a partial config. See [write details](docs/MCP_SERVER.md).
+
+This describes the Cherry Meter 1.2.0 candidate and 1.2.1-rc.1 preview, neither
+an approved Directory listing. Support is available through the
 [project issue tracker](https://github.com/josiahH-cf/spend-outcomes/issues).
 Issues are public: do not post private logs, reports, configuration, identifiers
 or credentials. This policy does not replace Anthropic's or OpenAI's policies

@@ -1,0 +1,14 @@
+{
+  "name": "cherry-meter-preview",
+  "description": "Windows AMD64 / Claude Code preview releases of Cherry Meter. Independent distribution, not an Anthropic Directory listing.",
+  "owner": {
+    "name": "josiahH-cf"
+  },
+  "plugins": [
+    {
+      "name": "cherry-meter",
+      "source": "./",
+      "description": "Windows AMD64 preview with a declared local MCP server. Requires existing trusted Python 3.10+; separate helper setup is operator controlled."
+    }
+  ]
+}

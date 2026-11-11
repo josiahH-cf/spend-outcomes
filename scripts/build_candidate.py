@@ -9,9 +9,9 @@ import re
 DIRECTORIES = (".claude-plugin", "commands", "spend_outcomes", "native", "docs")
 FILES = ("LICENSE", "README.md", "PRIVACY.md", "scripts/build_candidate.py")
 SUFFIXES = {".json", ".md", ".py", ".ps1", ".cmd"}
-REQUIRED = {".claude-plugin/plugin.json", "native/launch.py", "native/mcp_server.py", "spend_outcomes/mcp.py", "spend_outcomes/__init__.py",
+REQUIRED = {".claude-plugin/plugin.json", ".claude-plugin/marketplace.json", "native/launch.py", "native/mcp_server.py", "spend_outcomes/mcp.py", "spend_outcomes/__init__.py",
             "spend_outcomes/__main__.py", "commands/setup.md", "commands/report.md",
-            "commands/checkpoint.md", "commands/doctor.md"}
+            "commands/checkpoint.md", "commands/doctor.md", "commands/demo.md"}
 
 
 def encoded(value):
@@ -52,8 +52,21 @@ def collect_source(root):
             json.loads(text)
         contents[name] = data
     manifest = json.loads(contents[".claude-plugin/plugin.json"])
-    if manifest.get("name") != "cherry-meter" or not re.fullmatch(r"\d+\.\d+\.\d+", manifest.get("version", "")):
+    if manifest.get("name") != "cherry-meter" or not re.fullmatch(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-rc\.[1-9][0-9]*)?", manifest.get("version", "")):
         raise ValueError("invalid plugin name/version")
+    catalog = json.loads(contents[".claude-plugin/marketplace.json"])
+    if (not isinstance(catalog, dict)
+            or set(catalog) != {"name", "description", "owner", "plugins"}
+            or catalog.get("name") != "cherry-meter-preview"
+            or catalog.get("owner") != {"name": "josiahH-cf"}
+            or not isinstance(catalog.get("description"), str) or not catalog["description"].strip()
+            or not isinstance(catalog.get("plugins"), list) or len(catalog["plugins"]) != 1):
+        raise ValueError("candidate marketplace must be the reviewed preview catalog")
+    entry = catalog["plugins"][0]
+    if (not isinstance(entry, dict) or set(entry) != {"name", "source", "description"}
+            or entry.get("name") != manifest["name"] or entry.get("source") != "./"
+            or not isinstance(entry.get("description"), str) or not entry["description"].strip()):
+        raise ValueError("candidate marketplace must contain only the root plugin without overrides")
     tree = ast.parse(contents["spend_outcomes/__init__.py"].decode("utf-8"))
     versions = [ast.literal_eval(node.value) for node in tree.body if isinstance(node, ast.Assign)
                 and any(isinstance(target, ast.Name) and target.id == "__version__" for target in node.targets)]

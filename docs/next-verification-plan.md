@@ -1,12 +1,24 @@
 # Remaining verification and directory plan
 
-This plan does not itself authorize gated actions. Version 1.2.0 declared-MCP
-qualification is underway; 1.1.x live-provider and installed-helper evidence is
-historical and does not qualify the new execution path. Publication, submission and
-legal acceptance remain separate actions. Technical checks and Directory
-eligibility are separate.
+## Current independent preview track (2026-11-11)
 
-## Current execution gates (2026-11-10)
+Version 1.2.1-rc.1 prepares an independent Windows AMD64 / Claude Code marketplace.
+Complete isolated clean-profile install, update/rollback, package/MCP checks and
+independent review before publishing. Keep actual public Git acquisition separate
+from local-catalog testing. Do not retry denied network or PowerShell operations,
+change security settings or copy credentials to make a test pass.
+
+The 1.2.0 source was published and validated; its Directory submission was refused
+on organization eligibility for local MCP/file capabilities. Preserve that
+submission and source branch. No repeat submission or eligibility claim is part
+of this preview. See [preview guide](windows-preview.md) and
+[Directory status](directory-readiness.md). Native Mac/ARM, a fresh independent
+OS, other client surfaces and daily continuous capture remain separate tracks.
+
+The dated 1.2.0 plan below preserves its evidence and execution boundaries; its
+publication/submission checklist is historical, superseded by the status above.
+
+## Historical execution gates (2026-11-10)
 
 The 1.2.0 implementation declares six MCP tools. The interpreter setting now
 defaults to `python` on the host PATH, which is not trust-verified and can launch

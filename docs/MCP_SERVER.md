@@ -1,5 +1,11 @@
 # Declared MCP server, version 1.2.0
 
+Current independent distribution: **1.2.1-rc.1 Windows AMD64 / Claude Code preview**.
+See [preview installation and limits](windows-preview.md). The 1.2.0 evidence below is
+historical; it does not establish new platform or workflow qualification.
+This execution/data-handling contract applies to both 1.2.0 and 1.2.1-rc.1.
+The preview does not expand its authorized reads, writes or execution.
+
 Cherry Meter's Claude plugin runs its application tools inside the declared
 `cherry-meter` stdio MCP server. Commands do not execute a shell, the native CLI,
 an external consumer, or a second Python process. The independent native CLI and
@@ -60,6 +66,33 @@ No generic CLI/command/file-read tool is provided. Legacy telemetry consumers,
 arbitrary exports, record/import/export/show operations, collector startup,
 service registration and OS/settings changes are not reachable through MCP.
 The independent CLI's existing behavior remains available to the operator.
+
+## Preview write details in 1.2.1-rc.1
+
+The preview adds `write_details` to setup, demo and report plans to describe
+existing file effects; it does not change storage behavior or broaden paths.
+These details participate in the plan hash. A hash from an earlier plan is stale
+and cannot authorize the new plan. Inspect and approve the current exact scope.
+
+- Setup directly creates the one new config with exclusive creation. Its
+  `atomic_files` and `sqlite_files` lists are empty and `directory_creation` is
+  false. There are no setup lock/temp, state or SQLite files. Interruption can
+  leave a partially written new config, which must be inspected before retry.
+- Report lists JSON and optional HTML atomic output categories, using the
+  generated digest as a filename placeholder, their persistent adjacent lock
+  files and temporary filename patterns. It identifies possible creation of
+  the report directory and missing parents, and repeats the already-scoped
+  SQLite `-wal`/`-shm` paths. SQL schema/data are not modified by reporting.
+- Demo lists five directories and four atomic file categories inside its new
+  root: synthetic JSONL, config and JSON/HTML reports. It also lists its synthetic
+  SQLite store and possible `-wal`, `-shm` and `-journal` files. It reads no real
+  usage. These synthetic writes are distinct from report access to an existing
+  metrics store.
+
+Atomic writes leave adjacent lock files. Temporary files are normally renamed
+or removed, but interruption can leave them. Check approved destinations after
+failure; neither a timeout nor cancellation guarantees rollback. The placeholders
+are descriptions only, never paths used to drive I/O.
 
 ## Exact scope and actual consent
 

@@ -7,6 +7,8 @@ import sys
 import tempfile
 import unittest
 
+from spend_outcomes import __version__
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -15,7 +17,7 @@ class NativeWrappers(unittest.TestCase):
         with tempfile.TemporaryDirectory() as other:
             result = subprocess.run([sys.executable, str(ROOT / "native/launch.py"), "--version"], cwd=other, text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertRegex(result.stdout.strip(), r"^\d+\.\d+\.\d+$")
+        self.assertEqual(result.stdout.strip(), __version__)
 
     def test_missing_package_is_explicit(self):
         with tempfile.TemporaryDirectory(prefix="cherry meter ") as temporary:
@@ -45,19 +47,19 @@ class NativeWrappers(unittest.TestCase):
     def test_windows_cmd_version(self):
         result = subprocess.run(["cmd.exe", "/d", "/c", str(ROOT / "native/cherry-meter.cmd"), "--version"], text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertRegex(result.stdout.strip(), r"^\d+\.\d+\.\d+$")
+        self.assertEqual(result.stdout.strip(), __version__)
 
     @unittest.skipUnless(os.name == "nt", "Windows-native wrapper")
     def test_powershell_version_without_policy_override(self):
         result = subprocess.run(["powershell.exe", "-NoProfile", "-File", str(ROOT / "native/cherry-meter.ps1"), "--version"], text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertRegex(result.stdout.strip(), r"^\d+\.\d+\.\d+$")
+        self.assertEqual(result.stdout.strip(), __version__)
 
     def test_plugin_structure_and_no_autostart(self):
         plugin = ROOT
         manifest = json.loads((plugin / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["name"], "cherry-meter")
-        self.assertRegex(manifest["version"], r"^\d+\.\d+\.\d+$")
+        self.assertEqual(manifest["version"], __version__)
         for command in ("setup", "report", "checkpoint", "doctor"):
             text = (plugin / "commands" / (command + ".md")).read_text(encoding="utf-8")
             self.assertTrue(text.startswith("---\ndescription:"))

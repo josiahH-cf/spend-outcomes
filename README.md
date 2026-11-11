@@ -1,8 +1,8 @@
 # Cherry Meter
 
-## 1.2.0 declared-MCP source candidate
+## 1.2.1-rc.1 Windows AMD64 / Claude Code preview
 
-This source candidate provides device-local Codex and prospective Claude metrics
+This independent preview provides device-local Codex and prospective Claude metrics
 reports through a declared, readable-source MCP server. All five plugin commands
 call only its tools. The server can start with the enabled plugin, but reads no
 usage or device config at startup. It starts no receiver or child process,
@@ -14,8 +14,13 @@ setting its verified absolute path in plugin settings. No runtime is bundled or
 downloaded. Native qualification used an explicit trusted absolute override, not
 an unconfigured PATH default.
 
-Version 1.2.0 changes the plugin execution path. It is a review candidate, not a
-stable release or an approved Directory listing. One controlled native Windows
+Version 1.2.1-rc.1 packages the 1.2.0 declared-MCP design for an independent
+self-hosted marketplace. It is not a stable release or an approved Anthropic
+Directory listing. Start with [preview installation](docs/windows-preview.md).
+Version and distribution metadata change, and plans now spell out existing
+ancillary lock/temp/store writes. Actual I/O scope and the MCP execution boundary
+are unchanged. Preview hashes change with the expanded descriptions.
+The following native result belongs to the earlier 1.2.0 source: one controlled native Windows
 Claude Code path passed declared-server discovery, info/doctor/report preview
 and one approved report apply, with no denials, shell fallback or unrelated tool
 calls. Other commands and client paths remain unqualified. Earlier 1.1.x results
@@ -57,6 +62,7 @@ sets out the policy, live-provider, native Mac and publisher actions in order.
 
 ## Documentation, privacy and support
 
+- [Windows preview installation, updates and rollback](docs/windows-preview.md)
 - [Setup and platform limits](docs/native-candidate.md)
 - [Declared MCP contract and limitations](docs/MCP_SERVER.md)
 - [Data handling and retention](PRIVACY.md)
@@ -68,12 +74,23 @@ GitHub issues are public. Do not attach private logs, reports, configuration,
 workspace paths, session identifiers, credentials or personal information.
 The Windows AMD64 and controlled Claude Code/Codex results are scoped to the
 exact workflows recorded below. Directory validation and acceptance remain
-separate, unfinished steps.
+separate from this independent preview. The 1.2.0 Directory submission was
+refused on organization eligibility; see the [status record](docs/directory-readiness.md).
 
 The measurement engine sends no measurements to a remote service. When used
 through Claude, selected command output and reports may enter Claude's hosted
 conversation and are processed under the user's Anthropic settings and policies.
 Keep raw logs, secrets and unrelated private context out of the conversation.
+
+## Preview packaging qualification (2026-11-11)
+
+The 1.2.1-rc.1 package passed an isolated fresh-profile Claude Code install with
+an explicit absolute Python setting, synthetic version update/rollback cycles,
+and direct installed-manifest MCP demo/report calls returning 300 synthetic
+tokens. The final permitted suite passed 147 tests, with one symlink skip and one
+prior-denied PowerShell test excluded. Production configuration was unchanged.
+This is not clean-OS, public-Git acquisition or authenticated fresh-client
+qualification. See the [dated preview checks](docs/windows-preview.md).
 
 ## Controlled 1.2.0 native MCP result
 

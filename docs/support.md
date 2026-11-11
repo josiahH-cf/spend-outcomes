@@ -1,5 +1,10 @@
 # Cherry Meter support and troubleshooting
 
+Current independent distribution: **1.2.1-rc.1 Windows AMD64 / Claude Code preview**.
+See [preview installation and limits](windows-preview.md). The 1.2.0 evidence below is
+historical; it does not establish new platform or workflow qualification.
+The MCP execution and data-handling contract are unchanged.
+
 Use the [project issue tracker](https://github.com/josiahH-cf/spend-outcomes/issues)
 for public bug reports and setup questions. This route promises no response time.
 

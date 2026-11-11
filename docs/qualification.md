@@ -1,4 +1,4 @@
-# Local qualification record: 1.2.0 candidate and 1.1.x history
+# Local qualification record: Windows preview and prior evidence
 
 Checked on 2026-11-10. This is a development record, not platform certification,
 provider endorsement or Directory approval. Automated tests use synthetic inputs.
@@ -6,7 +6,49 @@ Separately authorized native Codex and Claude live sessions are recorded below,
 with their exact scope and reconciliation. No earlier private session contents
 were read for these controlled tests.
 
-## Current 1.2.0 declared-MCP status (2026-11-10)
+## 1.2.1-rc.1 independent Windows preview (2026-11-11)
+
+The preview retains the declared-MCP I/O behavior and adds a self-hosted
+marketplace, a distinct prerelease version to avoid reusing the 1.2.0 cache, and
+more accurate existing-write descriptions in setup/demo/report plans. Those
+new descriptions change plan hashes, not authorized paths or storage effects.
+Runtime bytes are not identical to 1.2.0; historical native evidence stays separate.
+Its scope is Windows AMD64 and Claude Code with existing trusted Python 3.10+.
+The initial frozen preview package passed a fresh isolated Claude Code 2.1.287
+profile installation, with an explicit absolute Python option saved before any
+model session. A separate synthetic catalog passed 1.2.0 -> 1.2.1-rc.1 -> 1.2.0
+-> 1.2.1-rc.1 transitions through supported marketplace/plugin update commands;
+all source/cache hashes matched at each step and 15 retained synthetic files
+remained unchanged. Direct installed-manifest stdio demo/report calls returned
+300 synthetic tokens. No credentials were copied or model inference performed,
+and production settings/registry/catalog hashes remained unchanged.
+
+After the narrow plan-description and package-guard refinements, the final
+permitted regression ran 148 tests: 147 passed, one existing symlink-privilege
+check was skipped and one previously denied PowerShell-wrapper test was excluded.
+All 23 focused MCP tests passed. Canonical source/artifact parity and final
+fresh-profile package verification must be bound to the release identity
+before publication. See [preview guide](windows-preview.md).
+These checks are not a clean operating-system installation, an authenticated
+fresh-client model/tool session, or GitHub network acquisition. Local-directory
+startup loads source in place even when registry/cache updates are recorded.
+
+The 1.2.0 remediation was independently audited and tested at local commit
+`ee5c673ac41a5b7eae2f684472157b20d66d22e1`: 141 tests passed, one symlink-privilege
+test was skipped and one previously denied PowerShell-wrapper test was excluded.
+Public commit `2a56314fbb69f0c707a3be18e904d09afc67e1bd` has the identical tree
+`aeab71e0b28ed21a85b1fbeb38c4d6842b991a87`; public and local commit identities differ.
+Its runtime and command source matched the earlier native-qualified ca7ce54
+except later distribution metadata. This preview does not relabel that native
+qualification as a new integration run.
+
+The Directory subsequently validated that 1.2.0 source with zero blockers,
+four warnings and three policy holds, but refused the submission on organization
+eligibility for local MCP/file capabilities. This is not Directory acceptance.
+See [Directory status](directory-readiness.md) and [preview guide](windows-preview.md).
+Dated descriptions below preserve what was known at each earlier checkpoint.
+
+## Historical 1.2.0 declared-MCP qualification (2026-11-10)
 
 Version 1.2.0 changes plugin execution to six declared stdio MCP tools. The
 interpreter setting defaults to `python` resolved through the host PATH, without
@@ -67,8 +109,8 @@ clean-machine installation remain unqualified. The historical 1.1.3 results
 below are retained rather than being relabeled as MCP evidence.
 
 Source publication for review is separate from Directory validation, security
-scanning and acceptance. Portal compliance attestations remain unchecked;
-no submission or acceptance is established by these tests.
+scanning and acceptance. These tests alone establish neither submission nor acceptance; the later
+Directory outcome is recorded above.
 
 ## Minimal portal remediation, still 1.2.0
 
@@ -77,9 +119,8 @@ override before the manifest default was added. That installed override and the
 runtime/command code remain unchanged; fresh unconfigured PATH resolution is
 not qualified by that result. The root plugin path and version remain unchanged.
 The default and synthetic preflight-test guard respond to the initial portal
-findings described in [Directory readiness](directory-readiness.md). They need
-aggregate review and final exact-source tests, followed by portal revalidation.
-No finding is considered resolved merely because a source edit was made.
+findings described in [Directory readiness](directory-readiness.md). The later aggregate audit, exact-source tests and portal outcome are recorded
+above. A source edit alone did not establish that a finding was resolved.
 
 ## Historical 1.1.3 deployment and verification (2026-11-10)
 
@@ -285,10 +326,8 @@ Do not install it or change machine policy merely to execute this checklist.
 - Logon/reboot recovery, actual sleep/wake continuity or a schema-changing upgrade.
   A source/plugin update does not prove the separately registered collector
   changed version; verify its health and exact task action independently.
-- Directory validation, security scanning, compliance acceptance, submission,
-  reviewer approval or publication. Privacy/support/documentation content is
-  prepared locally; the final source and pages still require publication and
-  URL verification. They do not establish acceptance.
+- Directory approval or listing publication. The later source publication and
+  validation did not establish acceptance; organization eligibility blocked it.
   Jo reports policy approval through outside communications;
   the underlying communication and its scope have not been independently reviewed
   here. This report does not require repeat outreach or establish listing approval.

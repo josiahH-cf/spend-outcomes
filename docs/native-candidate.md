@@ -1,5 +1,10 @@
 # Native helper and 1.2.0 declared-MCP plugin candidate
 
+Current independent distribution: **1.2.1-rc.1 Windows AMD64 / Claude Code preview**.
+See [preview installation and limits](windows-preview.md). The 1.2.0 evidence below is
+historical; it does not establish new platform or workflow qualification.
+The MCP execution and data-handling contract are unchanged.
+
 ## Status and boundaries
 
 Version 1.2.0 is a declared-MCP source candidate, not a stable release or a marketplace-approved listing. One native Windows Claude Code path passed natural server discovery, info, doctor, report preview and one approved report apply, without denials, shell fallback or unrelated tool calls. Other actual-client setup/demo/checkpoint workflows remain unqualified. Earlier 1.1.x controlled measurements, shell-guided reporting and collector registration/restart remain separate historical evidence. Interactive CLI variants, desktop/IDE emission, macOS Intel/Apple Silicon, Windows ARM64, lifecycle after sleep, independent clean-machine installation and Directory acceptance remain gaps. WSL testing is not macOS testing. See `qualification.md` for the exact evidence and limits.
