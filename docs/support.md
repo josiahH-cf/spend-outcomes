@@ -1,6 +1,6 @@
 # Cherry Meter support and troubleshooting
 
-Current independent distribution: **1.2.1-rc.1 Windows AMD64 / Claude Code preview**.
+Current independent distribution: **1.3.0-rc.1 Windows AMD64 / Claude Code preview**.
 See [preview installation and limits](windows-preview.md). The 1.2.0 evidence below is
 historical; it does not establish new platform or workflow qualification.
 The MCP execution and data-handling contract are unchanged.
@@ -62,3 +62,7 @@ See [data handling](../PRIVACY.md) and [qualification](qualification.md).
 One controlled 1.2.0 native Windows info/doctor/report path passed; other client
 paths, clean-machine installation and Directory acceptance remain unverified.
 Earlier 1.1.x results retain their separate historical scope.
+
+## Decision recovery
+
+Use the same approved config and `/cherry-meter:decisions` with an exact ID after an uncertain save. Exact retries retain the first record; conflicting ID reuse is held. Use a new ID for a later decision. Old report HTML stays frozen. Never hand-edit an immutable decision or use a shell fallback.

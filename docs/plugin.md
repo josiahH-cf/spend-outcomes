@@ -1,6 +1,6 @@
 # Cherry Meter 1.2.0 source plugin candidate
 
-Current independent distribution: **1.2.1-rc.1 Windows AMD64 / Claude Code preview**.
+Current independent distribution: **1.3.0-rc.1 Windows AMD64 / Claude Code preview**.
 See [preview installation and limits](windows-preview.md). The 1.2.0 evidence below is
 historical; it does not establish new platform or workflow qualification.
 The MCP execution and data-handling contract are unchanged.
@@ -23,7 +23,7 @@ The host launches the configured executable directly with
 enabled plugin, but startup reads no usage or device config. It makes no network
 requests and starts no child process or collector.
 
-The five commands are `/cherry-meter:setup`, `/cherry-meter:demo`,
+The core setup/report commands are `/cherry-meter:setup`, `/cherry-meter:demo`,
 `/cherry-meter:report`, `/cherry-meter:checkpoint`, and `/cherry-meter:doctor`.
 They use only declared MCP tools. Missing prerequisites and held operations must
 be reported; shell, PowerShell, native-launcher, arbitrary file-read and external
@@ -85,3 +85,5 @@ and stable, verify the exact version/cache and restart the client when required.
 Do not substitute the old 1.1.3 cache for the distinct 1.2.0 candidate. Source
 publication for review does not complete portal validation, security scanning,
 attestations or Directory acceptance.
+
+The current preview also declares `/cherry-meter:decision` and `/cherry-meter:decisions` for explicit snapshot-bound decisions and bounded local history. See [MCP contract](MCP_SERVER.md).

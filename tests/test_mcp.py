@@ -63,7 +63,7 @@ class MCPTools(unittest.TestCase):
             result = apply('cherry_meter_report', {'config': config})
             self.assertEqual(result['consumption']['tokens'], 300)
             self.assertTrue(Path(result['html']).is_file())
-            self.assertNotIn('Refresh explicitly', Path(result['html']).read_text(encoding='utf-8'))
+            self.assertIn('/cherry-meter:report', Path(result['html']).read_text(encoding='utf-8'))
             update = apply('cherry_meter_checkpoint', {'config': config, 'project': 'demo', 'id': 'review',
                 'status': 'complete', 'actor': 'Test operator', 'note': 'Reviewed synthetic sample'})
             self.assertEqual(update['checkpoint']['provenance'], 'operator-reported')
@@ -334,7 +334,7 @@ class MCPTools(unittest.TestCase):
     def test_annotations_are_honest(self):
         for tool in mcp.TOOLS:
             self.assertFalse(tool['annotations']['openWorldHint'])
-            self.assertEqual(tool['annotations']['readOnlyHint'], tool['name'] in ('cherry_meter_info', 'cherry_meter_doctor'))
+            self.assertEqual(tool['annotations']['readOnlyHint'], tool['name'] in ('cherry_meter_info', 'cherry_meter_doctor', 'cherry_meter_decisions'))
 
 
 class MCPProtocol(unittest.TestCase):
@@ -355,7 +355,7 @@ class MCPProtocol(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(len(rows), 3)
         self.assertEqual(rows[0]['result']['protocolVersion'], '2025-06-18')
-        self.assertEqual(len(rows[1]['result']['tools']), 6)
+        self.assertEqual(len(rows[1]['result']['tools']), 8)
         self.assertFalse(rows[2]['result']['isError'])
 
     def test_errors_and_initialization_order(self):

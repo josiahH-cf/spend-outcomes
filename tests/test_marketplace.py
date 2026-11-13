@@ -27,7 +27,7 @@ class Marketplace(unittest.TestCase):
         self.assertEqual(entry['source'], './')
         self.assertEqual(set(entry), {'name', 'source', 'description'})
         self.assertEqual(manifest['version'], __version__)
-        self.assertEqual(__version__, '1.2.1-rc.1')
+        self.assertEqual(__version__, '1.3.0-rc.1')
         self.assertIn('Windows AMD64', manifest['description'])
         self.assertIn('docs/windows-preview.md', source)
 

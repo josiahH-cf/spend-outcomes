@@ -1,6 +1,6 @@
 # Native helper and 1.2.0 declared-MCP plugin candidate
 
-Current independent distribution: **1.2.1-rc.1 Windows AMD64 / Claude Code preview**.
+Current independent distribution: **1.3.0-rc.1 Windows AMD64 / Claude Code preview**.
 See [preview installation and limits](windows-preview.md). The 1.2.0 evidence below is
 historical; it does not establish new platform or workflow qualification.
 The MCP execution and data-handling contract are unchanged.
@@ -20,7 +20,7 @@ preferably by configuring its explicit absolute path. The qualified native
 workflow used that absolute override; unconfigured PATH startup remains unqualified.
 The host runs the declared `cherry-meter` stdio MCP server
 with that executable and `-I -S -B`. It can start with the enabled plugin but reads
-no usage or device config at startup. All five plugin commands call only the
+no usage or device config at startup. All seven plugin commands call only the
 declared tools. They must not execute the native CLI, start the helper, call a
 shell, or use arbitrary file-read tools as a fallback.
 

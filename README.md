@@ -1,6 +1,60 @@
 # Cherry Meter
 
-## 1.2.1-rc.1 Windows AMD64 / Claude Code preview
+## 1.3.0-rc.1 Windows AMD64 / Claude Code preview
+
+For individual builders using Claude Code and Codex on one execution device:
+see the usage Cherry Meter can observe beside the progress you explicitly report,
+then choose what to keep, change, investigate or hold. Forward collection is
+sufficient. Project attribution is explicit and may remain unassigned.
+
+Start with the [Windows preview guide](docs/windows-preview.md). It distinguishes
+this independent preview from **stable 1.0.1**, the older WSL/Codex workflow.
+Review the exact [versioned release](https://github.com/josiahH-cf/spend-outcomes/releases/tag/v1.3.0-rc.1),
+ZIP checksums and prerequisites before enabling. No migration of a legacy setup
+is implied. This is not an approved Anthropic Directory listing.
+
+The report puts the UTC observation window, generated time and coverage first,
+then each project's outcome, operator-reported checkpoints, usage and qualified
+advisory comparison. Provider/model observations stay separate. Unassigned usage
+remains visible in device observations; unknown never means zero. Project views
+and device totals are non-additive. Token volume establishes neither productivity,
+billed spending, ROI nor human acceptance.
+
+Seven commands use only the declared local MCP server:
+`/cherry-meter:setup`, `/cherry-meter:demo`, `/cherry-meter:report`,
+`/cherry-meter:checkpoint`, `/cherry-meter:doctor`, `/cherry-meter:decision`
+and `/cherry-meter:decisions`. Reports contain static next-step guidance: they
+run nothing and save nothing when opened. Refreshing creates a new immutable
+snapshot; earlier HTML cannot show later checkpoints or decisions.
+
+Decisions require your own keep/change/investigate/hold choice, reason, next
+action, review trigger and actor. They bind one exact device-report SHA256 and
+reuse the existing immutable `pv-decision-v1` store. Exact retries retain their
+first timestamp/bytes; conflicting IDs are held. A later decision uses a new ID
+and can explicitly supersede an earlier compatible decision. Recording or reading
+decisions reads no usage and starts no work. See the [MCP contract](docs/MCP_SERVER.md).
+
+Before enabling, select an existing trusted Python 3.10+ absolute interpreter.
+The default `python` is host PATH resolution, not a trust check. No runtime is
+bundled or downloaded. Startup reads no usage or user config. Setup and report
+require exact path approval and current preview/apply scopes; a plan hash is not
+consent. The independently installed Claude metrics helper and provider export
+settings remain separate operator-controlled steps. No helper is installed,
+started, restarted or probed by these plugin commands. No shell/file-reader
+fallback is supported.
+
+The engine makes no remote requests and excludes prompt/response/tool content.
+Selected tool output may enter Claude's hosted conversation under your Anthropic
+settings. Keep private reports, config and paths out of public issues. Synthetic
+demos demonstrate plumbing, never actual usage or human progress.
+
+Qualification remains bounded: Windows preview evidence does not establish
+consumer/non-admin clean installation, native Mac/ARM, all IDE/GUI surfaces,
+continuous daily capture or actual human usefulness. Read the current
+[qualification record](docs/qualification.md), [journey/specs](docs/journey.md),
+[privacy](PRIVACY.md) and [support](docs/support.md).
+
+## Historical 1.2.1-rc.1 source and evidence
 
 This independent preview provides device-local Codex and prospective Claude metrics
 reports through a declared, readable-source MCP server. All five plugin commands

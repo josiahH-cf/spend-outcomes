@@ -1,10 +1,9 @@
-# Declared MCP server, version 1.2.0
+# Declared MCP server, current Windows preview
 
-Current independent distribution: **1.2.1-rc.1 Windows AMD64 / Claude Code preview**.
+Current independent distribution: **1.3.0-rc.1 Windows AMD64 / Claude Code preview**.
 See [preview installation and limits](windows-preview.md). The 1.2.0 evidence below is
 historical; it does not establish new platform or workflow qualification.
-This execution/data-handling contract applies to both 1.2.0 and 1.2.1-rc.1.
-The preview does not expand its authorized reads, writes or execution.
+The report/setup boundary below originated in 1.2.0/1.2.1-rc.1. Version 1.3.0-rc.1 adds only the explicitly declared decision adapter and retrieval scope described below; it creates no standing grant.
 
 Cherry Meter's Claude plugin runs its application tools inside the declared
 `cherry-meter` stdio MCP server. Commands do not execute a shell, the native CLI,
@@ -57,13 +56,20 @@ helper, register a scheduled task, change telemetry settings or persist access.
 - `cherry_meter_checkpoint`: preview/apply an exact operator-reported checkpoint,
   preserving history. Writes only the config and adjacent lock/temporary files.
   Multiple-project configs need a project-specific outcome.
+- `cherry_meter_decision`: read the approved config and one exact saved device
+  report for preview; after exact approval, persist a human-chosen immutable
+  decision through the existing `core.save_record` owner. No usage reads.
+- `cherry_meter_decisions`: read the approved config and its exact decision
+  directory, optionally one ID. At most 128 records, 64 KiB each and 1 MiB
+  returned history. No report/source reads or writes. Obtain permission for the
+  private read scope before calling; this read-only tool has no apply flag.
 
-Only info and doctor are annotated read-only. The other tools can write, even
+Info, doctor and decisions are annotated read-only. The other tools can write, even
 though their default preview mode does not. All tools declare closed-world local
 behavior. Annotations are hints, never authorization or a sandbox.
 
 No generic CLI/command/file-read tool is provided. Legacy telemetry consumers,
-arbitrary exports, record/import/export/show operations, collector startup,
+arbitrary exports, generic legacy record/import/export/show operations, collector startup,
 service registration and OS/settings changes are not reachable through MCP.
 The independent CLI's existing behavior remains available to the operator.
 
@@ -206,3 +212,37 @@ unrelated server's tools as part of this qualification.
 - [MCP 2025-06-18 lifecycle](https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle)
 - [MCP stdio transport](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)
 - [MCP tools](https://modelcontextprotocol.io/specification/2025-06-18/server/tools)
+
+## Snapshot-bound decisions in 1.3.0-rc.1
+
+The old CLI `record` accepts `pv-receipt-v1`, so it cannot bind a device report
+directly. The declared adapter accepts only canonical `cherry-meter-device-report-v1`
+JSON under the selected config's `state/device-reports/<SHA256>.json`, matching
+device metadata and canonical digest/bytes. This is local metadata binding, not
+cryptographic proof of physical device identity. Config and snapshot bytes are
+part of the plan. The adapter never rescans usage or imports an arbitrary file.
+
+Required arguments are config, receipt, stable ID, actor, decision
+(keep/change/investigate/hold), feedback (the person's reason), next_action and
+review_trigger. They must be supplied explicitly; agent output or silence cannot
+provide a human choice. Optional supersedes identifies a prior compatible device
+decision. The plan names the exact config/snapshot, destination/prior record reads,
+decision-directory creation, persistent store/record locks and adjacent temporary
+files. Preview reads config/snapshot; record reads and all writes occur on apply.
+
+Records remain `pv-decision-v1` in the existing `state/decisions/<id>.json` store.
+The `receipt` field is the full device-report SHA256; `source_versions` retains
+report contract/digest, device-metadata digest and generation timestamp. Existing
+legacy import/export retains these fields. Old legacy records are readable but
+cannot be superseded as a device decision without matching device provenance.
+Exact concurrent or later retries retain first-save timestamp and bytes. Conflicting
+reuse, missing/self/incompatible supersession, stale config/report plans and path
+escapes are held. Later IDs preserve history. No decision executes its next action,
+changes usage/outcomes or establishes acceptance/benefit.
+
+`cherry_meter_report` also returns generated time, SHA256 and project/outcome/target
+summaries to the connected client. HTML carries static supported next steps with
+the exact private config/report context. It makes no request, uses no remote
+assets or storage, and cannot refresh or save a checkpoint/decision by opening or
+copying text. Generate a new report after a checkpoint. Retrieve later decisions
+through the declared tool; old HTML remains frozen.

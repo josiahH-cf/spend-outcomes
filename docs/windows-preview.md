@@ -2,7 +2,7 @@
 
 ## Scope and prerequisites
 
-This is the independent **1.2.1-rc.1** preview of Cherry Meter, distributed through
+This is the independent **1.3.0-rc.1** preview of Cherry Meter, distributed through
 the project-owned `cherry-meter-preview` marketplace. It is not an Anthropic
 Directory listing, endorsement or stable cross-platform release. The original
 1.2.0 Directory branch and existing stable releases remain separate.
@@ -31,13 +31,13 @@ Check the first command for an existing Cherry Meter installation before running
 the subsequent commands. Do not enable two copies; decide how to switch an existing
 copy before installing.
 
-The intended public source is the dedicated `preview/windows-1.2.1-rc.1` branch.
+The reviewed public source is the immutable `v1.3.0-rc.1` tag, identified in the release record.
 Use these commands only after its publication and exact revision are confirmed
 in the release record. They are operator shell commands, not plugin skills:
 
 ```text
 claude plugin list
-claude plugin marketplace add "josiahH-cf/spend-outcomes#preview/windows-1.2.1-rc.1"
+claude plugin marketplace add "josiahH-cf/spend-outcomes#v1.3.0-rc.1"
 claude plugin install cherry-meter@cherry-meter-preview --scope user --config 'python_executable=C:\path to trusted Python\python.exe' --json
 claude plugin list
 ```
@@ -70,7 +70,7 @@ do not delete its source, private data or registered helper. The preview does
 not silently migrate the production installation or enable auto-update.
 
 After verifying the interpreter configuration, start a new Claude Code session
-(or follow that client's reload instructions). Confirm version `1.2.1-rc.1`
+(or follow that client's reload instructions). Confirm version `1.3.0-rc.1`
 through `cherry_meter_info`. Never treat source inspection or a registry entry
 alone as proof the MCP server started correctly. Start with a synthetic demo in a new private local
 directory. Review its preview, approve that exact scope, then apply. An existing
@@ -121,6 +121,36 @@ reviewed catalog/source through the client's normal plugin controls, reinstall
 and verify its exact version before enabling it. Do not assume uninstalling a
 plugin removes or rolls back a separately registered helper. Preserve private
 config, metrics, reports and receipts. No schema-changing rollback is qualified.
+
+## First real report and repeat use
+
+Use `/cherry-meter:setup` for only the bindings needed now: a new private config,
+state destination, device label, one project/workspace, exact permitted sources
+and tracking start. Outcome, success criterion, checkpoints and a target are
+optional user choices; defer advanced tuning and extra workspaces. The separate
+Claude collector/export setup must already be explicitly approved and configured
+to observe Claude usage. A Codex-only first report is valid if clearly scoped.
+
+1. Run `/cherry-meter:doctor` against the exact approved config. Path existence
+   alone does not prove readable, complete or fresh observations.
+2. Use `/cherry-meter:report`, review all reads/writes including SQLite sidecars,
+   approve that exact plan, and open the returned private HTML. Inspect window,
+   generated time, coverage, unknowns and unassigned attribution before comparing.
+3. When progress actually happens, explicitly choose checkpoint status, actor and
+   note with `/cherry-meter:checkpoint`. Generate another report to see it; the
+   old snapshot remains unchanged.
+4. Use `/cherry-meter:decision` with that saved JSON and your own decision ID,
+   actor, keep/change/investigate/hold, reason, next action and review trigger.
+   Preview and approve the record plan. Recording reads no usage and executes no
+   work. Use a new ID for a later decision, optionally naming the superseded ID.
+5. Retrieve `/cherry-meter:decisions` using the same exact config, optionally an
+   exact ID. Approve the private decision-directory read. History does not change
+   old HTML, report observations or outcome progress.
+
+The HTML next steps are selectable instructions, not execution controls. After
+cancellation or failure, inspect the approved destination before retrying because
+completed writes can remain. A changed plan needs a new preview. Never broaden
+roots, bypass a denial or repair helper/provider settings to force a report.
 
 ## Dated local packaging check (2026-11-11)
 

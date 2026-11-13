@@ -11,3 +11,5 @@ For preview/apply tools, first use `apply=false`. Show the exact returned plan, 
 Ask for the exact approved config path, project, checkpoint ID, status (pending, in-progress, complete or blocked), actor and note. Preview `cherry_meter_checkpoint`, show the exact update, obtain approval, then apply.
 
 It reads only the config and writes that config plus adjacent lock/temporary files. It preserves history and receipts. Multiple-project configs need a project-specific outcome; ambiguous global outcomes are held. Tokens, tests, builds and assistant judgments never establish human acceptance or benefit. Do not hand-edit state or call the native CLI to bypass a held update.
+
+After a successful update, explain that old reports still show the earlier checkpoint. Preview and approve a new report, then open its new HTML and compare timestamp/identity. Reusing an old checkpoint plan after config changes is held; inspect before retrying after an uncertain call.

@@ -25,7 +25,7 @@ from . import __version__
 from . import device
 from .claude import ClaudeStore
 from .codex import observe_codex_views
-from .core import digest, encoded, immutable
+from .core import digest, encoded, immutable, save_record
 from .storage import atomic_bytes, file_lock
 
 PROTOCOL = '2025-06-18'
@@ -257,9 +257,138 @@ def report(config, days=7, through=None, cancel=None):
 def summary(result):
     view = result.pop('view')
     return {**result, 'consumption': view['consumption'], 'coverage': view['coverage'],
+            'device': view['device'], 'generated_at': view['generated_at'], 'report_sha256': digest(view),
+            'projects': [{**{key: receipt[key] for key in ('selection', 'operator_outcome', 'comparisons')},
+                          'consumption': {key: receipt['consumption'][key] for key in ('tokens', 'coverage_status', 'from', 'to', 'days')}}
+                         for receipt in view['projects']],
             'tracking_start': view['tracking_start'], 'synthetic': view['synthetic'],
             'sources': [{key: source[key] for key in ('producer', 'status', 'sources', 'coverage') if key in source} for source in view['sources']],
             'qualifications': view['qualifications']}
+
+
+DECISION_FIELDS = {'contract', 'id', 'actor', 'receipt', 'decision', 'feedback', 'next_action',
+                   'review_trigger', 'created_at', 'provenance', 'source_versions', 'supersedes'}
+MAX_DECISION = 64 * 1024
+
+
+def read_decision(path):
+    path = local_path(str(path), file=True)
+    with path.open('rb') as stream:
+        raw = stream.read(MAX_DECISION + 1)
+    if len(raw) > MAX_DECISION:
+        raise Held('Decision exceeds 64 KiB; no records were changed.')
+    record = strict_json(raw)
+    if (not isinstance(record, dict) or set(record) - DECISION_FIELDS
+            or record.get('contract') != 'pv-decision-v1' or record.get('id') != path.stem
+            or record.get('provenance') != 'operator-reported'
+            or record.get('decision') not in ('keep', 'change', 'investigate', 'hold')
+            or not re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}', record.get('id', ''))
+            or not isinstance(record.get('actor'), str) or not record['actor'].strip()
+            or not re.fullmatch('[0-9a-f]{64}', record.get('receipt', ''))):
+        raise Held('Decision record is malformed or unsupported; no records were changed.')
+    device.stamp(record['created_at'])
+    return record
+
+
+def read_device_snapshot(config, value):
+    path = local_path(value, file=True)
+    expected_parent = local_path(str(Path(config['state']) / 'device-reports'))
+    if path.parent != expected_parent or path.suffix != '.json' or not re.fullmatch('[0-9a-f]{64}', path.stem):
+        raise Held('Select an exact saved SHA256 JSON report in this config\'s device-reports directory.')
+    with path.open('rb') as stream:
+        raw = stream.read(MAX_REPORT + 1)
+    if len(raw) > MAX_REPORT:
+        raise Held('Saved report exceeds 16 MiB.')
+    view = strict_json(raw)
+    if (not isinstance(view, dict) or view.get('contract') != 'cherry-meter-device-report-v1'
+            or view.get('device') != config['device'] or digest(view) != path.stem
+            or encoded(view) != raw):
+        raise Held('Saved report contract, device metadata or canonical SHA256 does not match.')
+    device.stamp(view['generated_at'])
+    return path, raw, view
+
+
+def decision_operation(args, cancel):
+    config_path, config_raw, config = read_config(args['config'])
+    receipt, receipt_raw, view = read_device_snapshot(config, args['receipt'])
+    root = local_path(str(Path(config['state']) / 'decisions'), write=True)
+    destination = local_path(str(root / (args['id'] + '.json')), write=True)
+    store_lock = local_path(str(root.with_name('.' + root.name + '.lock')), write=True)
+    local_path(str(destination.with_name('.' + destination.name + '.lock')), write=True)
+    for key in ('actor', 'feedback', 'next_action', 'review_trigger'):
+        if not args[key].strip():
+            raise Held('Supply your own nonblank actor, reason, next action and review trigger.')
+    supersedes = args.get('supersedes')
+    if supersedes == args['id']:
+        raise Held('A decision cannot supersede itself.')
+    previous = local_path(str(root / (supersedes + '.json'))) if supersedes else None
+    record = {'contract': 'pv-decision-v1', 'id': args['id'], 'actor': args['actor'],
+              'receipt': receipt.stem, 'source_versions': {'report_contract': view['contract'],
+                  'report_sha256': receipt.stem, 'device_sha256': digest(view['device']), 'generated_at': view['generated_at']},
+              **{key: args[key] for key in ('decision', 'feedback', 'next_action', 'review_trigger')},
+              'supersedes': supersedes, 'provenance': 'operator-reported'}
+    plan = {'operation': 'cherry_meter_decision', 'config': str(config_path),
+            'config_sha256': hashlib.sha256(config_raw).hexdigest(), 'receipt': str(receipt),
+            'report_sha256': receipt.stem, 'record': record,
+            'reads': [str(config_path), str(receipt), str(destination)] + ([str(previous)] if previous else []),
+            'write_details': {'directory': str(root), 'directory_creation': 'Decision directory if missing; config/state already exist.',
+                'store_lock_file': str(store_lock), 'atomic_files': atomic_write_details([destination]),
+                'qualification': 'Existing decisions are immutable. Exact retries preserve first-save timestamp and bytes. Lock files persist; interruption can leave temporary files or completed writes.'},
+            'usage_sources_read': False, 'execution_effects': []}
+    preview = plan_result(plan, args)
+    if preview is not None:
+        return preview
+    check_cancel(cancel)
+    root.mkdir(exist_ok=True, mode=0o700)
+    with file_lock(root):
+        check_cancel(cancel)
+        if read_config(str(config_path))[1] != config_raw or read_device_snapshot(config, str(receipt))[1] != receipt_raw:
+            raise Held('Config or snapshot changed; preview and obtain approval again.')
+        if previous:
+            old = read_decision(previous)
+            provenance = old.get('source_versions')
+            if not isinstance(provenance, dict) or provenance.get('device_sha256') != digest(view['device']):
+                raise Held('Superseded decision lacks matching device provenance; choose a compatible decision.')
+        reused = destination.exists()
+        if reused:
+            record['created_at'] = read_decision(destination)['created_at']
+        else:
+            record['created_at'] = dt.datetime.now(dt.timezone.utc).isoformat()
+        check_cancel(cancel)
+        try:
+            save_record(root, record)
+        except ValueError as error:
+            raise Held('Decision ID already contains different content; choose a new ID.') from error
+    return {'record': str(destination), 'decision': record, 'report_sha256': receipt.stem,
+            'reused': reused, 'applied': True, 'usage_sources_read': False, 'execution_effects': []}
+
+
+def decision_history(args, cancel):
+    _, _, config = read_config(args['config'])
+    root = local_path(str(Path(config['state']) / 'decisions'))
+    if root.exists() and not root.is_dir():
+        raise Held('The configured decision store is not a directory.')
+    if 'id' in args:
+        paths = [local_path(str(root / (args['id'] + '.json')), file=True)]
+    elif root.exists():
+        paths = []
+        for path in root.glob('*.json'):
+            paths.append(path)
+            if len(paths) > 128:
+                raise Held('More than 128 decisions; request an exact decision ID.')
+        paths.sort()
+    else:
+        paths = []
+    records, size = [], 0
+    for path in paths:
+        check_cancel(cancel)
+        record = read_decision(path)
+        size += len(json.dumps(record, ensure_ascii=True).encode('utf-8'))
+        if size > 1024 * 1024:
+            raise Held('Decision history exceeds 1 MiB; request an exact decision ID.')
+        records.append(record)
+    return {'decisions': records, 'directory': str(root), 'usage_sources_read': False, 'execution_effects': [],
+            'scope': 'Approved config and its decision records only; snapshots and usage sources were not read.'}
 
 
 def execute(name, args, cancel=None):
@@ -278,6 +407,10 @@ def execute(name, args, cancel=None):
         path, raw, config = read_config(args['config'])
         return {**device.doctor(config), 'config_sha256': hashlib.sha256(raw).hexdigest(),
                 'scope': scope(config), 'collector_checked': False, 'config': str(path)}
+    if name == 'cherry_meter_decision':
+        return decision_operation(args, cancel)
+    if name == 'cherry_meter_decisions':
+        return decision_history(args, cancel)
     if name == 'cherry_meter_report':
         path, raw, config = read_config(args['config'])
         days, through = args.get('days', 7), args.get('through')
@@ -307,7 +440,7 @@ def execute(name, args, cancel=None):
         check_cancel(cancel)
         immutable(receipt, view)
         if plan['html']:
-            atomic_bytes(html_path, device.render_device(view).encode('utf-8'))
+            atomic_bytes(html_path, device.render_device(view, config_path=path, receipt_path=receipt).encode('utf-8'))
         return summary({'receipt': str(receipt), 'html': str(html_path) if plan['html'] else None, 'view': view})
     if name == 'cherry_meter_demo':
         root = local_path(args['root'], write=True)
@@ -440,7 +573,15 @@ TOOLS = [
          ['config', 'state', 'project', 'workspace', 'device_name', 'tracking_start']),
     tool('cherry_meter_checkpoint', 'Preview an exact operator-reported checkpoint; apply after user approval. Never infer acceptance or benefit from usage.',
          {'config': PATH, 'project': string(128), 'id': string(128), 'status': {'type': 'string', 'enum': ['pending', 'in-progress', 'complete', 'blocked']},
-          'actor': string(200), 'note': string(2000), **APPLY}, ['config', 'project', 'id', 'status', 'actor', 'note'])]
+          'actor': string(200), 'note': string(2000), **APPLY}, ['config', 'project', 'id', 'status', 'actor', 'note']),
+    tool('cherry_meter_decision', 'Read the approved config and exact saved device snapshot to preview a human decision. Apply only after exact read/write approval; writes one immutable pv-decision-v1 in the existing decision store, with declared lock/temp files. No usage reads or work execution.',
+         {'config': PATH, 'receipt': PATH, 'id': string(128, pattern=r'^[A-Za-z0-9_.:-]+$'),
+          'actor': string(200), 'decision': {'type': 'string', 'enum': ['keep', 'change', 'investigate', 'hold']},
+          'feedback': string(2000), 'next_action': string(2000), 'review_trigger': string(2000),
+          'supersedes': string(128, pattern=r'^[A-Za-z0-9_.:-]+$'), **APPLY},
+         ['config', 'receipt', 'id', 'actor', 'decision', 'feedback', 'next_action', 'review_trigger']),
+    tool('cherry_meter_decisions', 'Read an approved config and up to 128 existing decision records in its exact state/decisions directory (1 MiB returned limit), or one exact ID. No usage or snapshot reads, writes, discovery outside that directory or work execution.',
+         {'config': PATH, 'id': string(128, pattern=r'^[A-Za-z0-9_.:-]+$')}, ['config'], True)]
 
 
 def validate(value, schema):

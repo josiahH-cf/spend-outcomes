@@ -28,7 +28,7 @@ class CandidatePackage(unittest.TestCase):
             data.decode("utf-8")
             if name.endswith(".py"):
                 ast.parse(data.decode("utf-8"))
-        for name in ("setup", "demo", "report", "checkpoint", "doctor"):
+        for name in ("setup", "demo", "report", "checkpoint", "doctor", "decision", "decisions"):
             text = contents["commands/" + name + ".md"].decode("utf-8").replace("\r\n", "\n")
             self.assertIn("declared `cherry-meter` MCP server", text)
             self.assertIn("cherry_meter_info", text)
@@ -52,7 +52,7 @@ class CandidatePackage(unittest.TestCase):
         self.assertIn('native/mcp_server.py', contents)
 
     def test_commands_use_only_declared_mcp_tools(self):
-        for name in ("setup", "demo", "report", "checkpoint", "doctor"):
+        for name in ("setup", "demo", "report", "checkpoint", "doctor", "decision", "decisions"):
             text = (ROOT / "commands" / (name + ".md")).read_text(encoding="utf-8")
             self.assertNotIn("native/launch.py", text)
             self.assertNotIn("$env:CLAUDE_PLUGIN_ROOT", text)

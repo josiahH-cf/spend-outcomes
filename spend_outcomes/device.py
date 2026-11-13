@@ -278,64 +278,9 @@ def device_report(config, days=7, through=None, *, observer=None):
                 'No prompts, responses, code or tool outputs are stored. No dollar estimate is claimed.']}
 
 
-def render_device(report, refresh_command=None):
-    def esc(value):
-        return html.escape(str(value if value is not None else 'Unknown'), quote=True)
-    pieces = ['<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">',
-        '<title>Cherry Meter device report</title><style>body{font:17px/1.5 system-ui;max-width:65rem;margin:auto;padding:2rem;background:#fafbf9;color:#172b36}article,details{border:1px solid #ccd6d8;padding:1rem;margin:1rem 0}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style>',
-        '<h1>Cherry Meter: ' + esc(report['device']['label']) + '</h1>',
-        '<p>Tracking start: ' + esc(report['tracking_start']) + '</p>',
-        '<p>Saved report: ' + esc(report['generated_at']) + '. Opening this report does not refresh it.</p>',
-        '<h2>Device observations</h2><p>Observed tokens: ' + esc(report['consumption']['tokens']) +
-        '. Coverage: ' + esc(report['coverage']['status']) + '.</p>', '<h2>Client and model</h2>']
-    if report.get('synthetic'):
-        pieces.insert(4, '<p><strong>Synthetic demonstration only. No real usage was read or measured.</strong></p>')
-    for row in report['consumption']['provider_models']:
-        pieces.append('<p>' + esc(row.get('client')) + ' / ' + esc(row.get('model')) + ': ' +
-            esc(row.get('tokens')) + ' tokens. Service: ' + esc(row.get('service_name', row.get('service'))) +
-            '. Account: ' + esc(row.get('account')) + '.</p>')
-        if row.get('client') == 'claude-code':
-            pieces.append('<p>Request category: ' + esc(row.get('query_source')) +
-                '. Entrypoint: ' + esc(row.get('entrypoint')) + '. App version: ' +
-                esc(row.get('app_version')) + '. Service version: ' + esc(row.get('service_version')) + '.</p>')
-    pieces.append('<h2>Source coverage</h2>')
-    for source in report['sources']:
-        name = {'spend-outcomes-codex': 'Codex', 'cherry-meter-claude': 'Claude Code'}.get(source.get('producer'), 'Configured source')
-        pieces.append('<article><h3>' + esc(name) + '</h3><p>Status: ' + esc(source.get('status')) + '</p>')
-        for row in source.get('sources', []):
-            pieces.append('<p>Tracking start: ' + esc(row.get('tracking_start')) + '</p>')
-            if 'files' in row:
-                pieces.append('<p>Files examined: ' + esc(row['files']) + '</p>')
-            if 'last_received' in row:
-                pieces.append('<p>Last metric received: ' + esc(row['last_received']) + '</p>')
-            if 'entrypoint_qualification' in row:
-                pieces.append('<p>Client launch-path qualification: ' + esc(row['entrypoint_qualification']) + '</p>')
-        for issue in source.get('coverage', {}).get('issues', []):
-            pieces.append('<p>' + esc(str(issue).replace('_', ' ')) + '</p>')
-        lifecycle = source.get('collector_lifecycle')
-        if lifecycle:
-            pieces.append('<p>Collector lifecycle: ' + esc(lifecycle['status'].replace('_', ' ')) + '</p>')
-            if lifecycle.get('gaps'):
-                pieces.append('<p>Unobserved intervals between collector runs: ' + esc(len(lifecycle['gaps'])) + '</p>')
-        pieces.append('</article>')
-    for receipt in report['projects']:
-        pieces.append('<article><h2>Project: ' + esc(receipt['selection']['label']) + '</h2><p>Observed tokens: ' +
-            esc(receipt['consumption']['tokens']) + '</p>')
-        for comparison in receipt['comparisons']:
-            pieces.append('<p>Advisory target: ' + esc(comparison['status']) + '. ' + esc(comparison['reason']) + '</p>')
-        outcome = receipt.get('operator_outcome')
-        if outcome:
-            pieces.append('<p>Operator-reported outcome: ' + esc(outcome['statement']) + '</p>')
-            for checkpoint in outcome.get('checkpoints', []):
-                pieces.append('<p>' + esc(checkpoint['text']) + ': ' + esc(checkpoint['status']) + '</p>')
-        pieces.append('</article>')
-    pieces.extend('<p>' + esc(item) + '</p>' for item in report['qualifications'])
-    if refresh_command:
-        from .__main__ import command_text
-        pieces.append('<h2>Refresh explicitly</h2><pre>' + esc(command_text(refresh_command)) + '</pre>')
-    pieces.append('<details><summary>Private measurement record</summary><pre>' +
-                  esc(encoded(report).decode('utf-8')) + '</pre></details></html>')
-    return ''.join(pieces)
+def render_device(report, refresh_command=None, *, config_path=None, receipt_path=None):
+    from .report_view import render
+    return render(report, refresh_command, config_path=config_path, receipt_path=receipt_path)
 
 
 def doctor(config):
@@ -400,7 +345,7 @@ def create_device_demo(args, invocation, *, report_builder=None):
     receipt = immutable(state / 'device-reports' / (digest(report) + '.json'), report)
     html_path = receipt.with_suffix('.html')
     refresh = [*invocation, 'device-inspect', '--config', str(path), '--html'] if invocation is not None else None
-    atomic_bytes(html_path, render_device(report, refresh).encode('utf-8'))
+    atomic_bytes(html_path, render_device(report, refresh, config_path=path, receipt_path=receipt).encode('utf-8'))
     return {'synthetic': True, 'real_usage_read': False, 'config': str(path), 'receipt': str(receipt),
             'html': str(html_path), 'expected_tokens': {'codex': 120, 'claude-code': 180, 'device': 300},
             'checkpoint_argv': [*invocation, 'checkpoint', '--config', str(path), '--project', 'demo',
@@ -486,5 +431,5 @@ def run_command(args, invocation):
                    '--days', str(args.days), '--html']
         if args.through:
             refresh += ['--through', args.through]
-        atomic_bytes(html_path, render_device(report, refresh).encode('utf-8'))
+        atomic_bytes(html_path, render_device(report, refresh, config_path=args.config, receipt_path=path).encode('utf-8'))
     return {'receipt': str(path), 'html': str(html_path) if html_path else None, 'view': report}

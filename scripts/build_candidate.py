@@ -11,7 +11,8 @@ FILES = ("LICENSE", "README.md", "PRIVACY.md", "scripts/build_candidate.py")
 SUFFIXES = {".json", ".md", ".py", ".ps1", ".cmd"}
 REQUIRED = {".claude-plugin/plugin.json", ".claude-plugin/marketplace.json", "native/launch.py", "native/mcp_server.py", "spend_outcomes/mcp.py", "spend_outcomes/__init__.py",
             "spend_outcomes/__main__.py", "commands/setup.md", "commands/report.md",
-            "commands/checkpoint.md", "commands/doctor.md", "commands/demo.md"}
+            "commands/checkpoint.md", "commands/doctor.md", "commands/demo.md",
+            "commands/decision.md", "commands/decisions.md", "spend_outcomes/report_view.py"}
 
 
 def encoded(value):
