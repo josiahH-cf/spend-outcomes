@@ -169,10 +169,16 @@ class Journey(unittest.TestCase):
         with self.assertRaises(mcp.Held):
             apply('cherry_meter_decision', self.args(id='second', supersedes='first'))
         self.assertFalse((self.state / 'decisions/second.json').exists())
+        value['source_versions'] = {'device_sha256': digest(json.loads(self.receipt.read_bytes())['device'])}
+        Path(first['record']).write_bytes(encoded(value))
+        with self.assertRaises(mcp.Held):
+            apply('cherry_meter_decision', self.args(id='legacy-link', supersedes='first'))
+        self.assertFalse((self.state / 'decisions/legacy-link.json').exists())
 
     def test_stale_config_cancellation_and_blank_human_fields(self):
         args = self.args()
         preview = mcp.execute('cherry_meter_decision', args)
+        original = self.config.read_bytes()
         value = json.loads(self.config.read_bytes()); value['device']['scope'] = 'Changed test scope'
         self.config.write_bytes(encoded(value))
         with self.assertRaises(mcp.Held):
@@ -181,6 +187,7 @@ class Journey(unittest.TestCase):
         with self.assertRaises(mcp.Cancelled):
             mcp.execute('cherry_meter_decision', args, cancel)
         self.assertFalse((self.state / 'decisions').exists())
+        self.config.write_bytes(original)
         for key in ('actor', 'feedback', 'next_action', 'review_trigger'):
             with self.assertRaises(mcp.Held):
                 mcp.execute('cherry_meter_decision', self.args(**{key: ' '}))

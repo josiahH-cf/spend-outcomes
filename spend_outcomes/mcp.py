@@ -347,7 +347,9 @@ def decision_operation(args, cancel):
         if previous:
             old = read_decision(previous)
             provenance = old.get('source_versions')
-            if not isinstance(provenance, dict) or provenance.get('device_sha256') != digest(view['device']):
+            if (not isinstance(provenance, dict) or provenance.get('device_sha256') != digest(view['device'])
+                    or provenance.get('report_contract') != 'cherry-meter-device-report-v1'
+                    or provenance.get('report_sha256') != old['receipt']):
                 raise Held('Superseded decision lacks matching device provenance; choose a compatible decision.')
         reused = destination.exists()
         if reused:

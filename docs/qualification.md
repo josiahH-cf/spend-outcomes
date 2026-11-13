@@ -6,6 +6,48 @@ Separately authorized native Codex and Claude live sessions are recorded below,
 with their exact scope and reconciliation. No earlier private session contents
 were read for these controlled tests.
 
+## 1.3.0-rc.1 journey candidate (2026-11-13, delivery held)
+
+The five revision-1 [journey specs](journey.md) were authored before implementation
+at `a7e086b`. Application checkpoint `f075581` adds the actual device renderer,
+static supported next steps, and the narrow existing-store decision adapter.
+
+Eleven new synthetic journey checks passed: snapshot/checkpoint continuity,
+observed zero versus unavailable, complete/partial/unavailable rendering fixtures,
+unassigned counts and hostile/long text, effect-free decision preview, exact and
+concurrent retries, conflict refusal, supersession/history, canonical snapshot
+binding, cancellation and bounded retrieval. This is source evidence, not human
+usability or acceptance. A preceding 23-check MCP run passed 22 checks and failed
+the old read-only annotation expectation after adding decision history; that test
+expectation was corrected before the checkpoint. It has not been fully rerun.
+
+The normal regression suite did **not run**. Automatic approval review twice
+rejected its launch because the runner omitted the previously denied PowerShell
+wrapper test. The denied test remained unrun and the rejection was not bypassed
+with another test selection. Full regression approval remains a delivery gate.
+Compilation, source-package validation and the installed Claude Code 2.1.287
+marketplace and plugin-manifest validators passed independently.
+
+A new isolated Claude profile installed the candidate with `configApplied: true`
+and the explicit existing Python 3.12 interpreter before any model session.
+Readback verified all 46 package source files and source digest
+`0e98e8713a9aa8f6067d335a87e651ba920064cd84f76a8bc5ba121c1453ab0e`.
+Direct stdio launched from that installed manifest returned version 1.3.0-rc.1
+and all eight declared tools (seven slash commands plus info). No usage, inference,
+credentials or production writes were part of this check. Five production
+config/registry/catalog hashes stayed unchanged. This installed package belongs
+to the application checkpoint above; subsequent documentation commits have their
+own source/package identities. It does not prove a new authenticated-client journey.
+
+The browser policy refused local file:// report inspection and prohibited a
+workaround. Local report visual, narrow-width, zoom, keyboard, focus and contrast
+checks remain unverified. Static markup and escaping checks do not replace them.
+Actual Jo acceptance/usefulness, a new live canary, clean consumer/non-admin
+Windows, native Mac/ARM and full client/IDE coverage also remain unverified.
+Release publication, JO production update and the dependent website rollout are
+held while the required regression/browser gates remain unresolved. No stable,
+Directory or human-value claim follows from this candidate.
+
 ## 1.2.1-rc.1 independent Windows preview (2026-11-11)
 
 The preview retains the declared-MCP I/O behavior and adds a self-hosted
