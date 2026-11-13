@@ -1,0 +1,35 @@
+{
+  "name": "cherry-meter",
+  "version": "1.3.0-rc.1",
+  "description": "Windows AMD64 / Claude Code preview: qualified device usage, operator-reported progress and explicit snapshot-bound decisions. Existing trusted Python 3.10+ required.",
+  "license": "MIT",
+  "author": {
+    "name": "Josiah Hunter"
+  },
+  "homepage": "https://github.com/josiahH-cf/spend-outcomes",
+  "repository": "https://github.com/josiahH-cf/spend-outcomes",
+  "userConfig": {
+    "python_executable": {
+      "type": "string",
+      "title": "Existing Python 3.10+ executable",
+      "description": "Default python uses host executable search rules, including PATH, and is not a trust check. Before enabling, verify trusted Python 3.10+ or override with its verified absolute path. No runtime is downloaded.",
+      "default": "python",
+      "required": true
+    }
+  },
+  "mcpServers": {
+    "cherry-meter": {
+      "command": "${user_config.python_executable}",
+      "args": [
+        "-I",
+        "-S",
+        "-B",
+        "${CLAUDE_PLUGIN_ROOT}/native/mcp_server.py"
+      ]
+    }
+  },
+  "displayName": "Cherry Meter (Windows preview)",
+  "documentationUrl": "https://github.com/josiahH-cf/spend-outcomes/blob/v1.3.0-rc.1/docs/windows-preview.md",
+  "privacyPolicyUrl": "https://github.com/josiahH-cf/spend-outcomes/blob/v1.3.0-rc.1/PRIVACY.md",
+  "supportUrl": "https://github.com/josiahH-cf/spend-outcomes/issues"
+}

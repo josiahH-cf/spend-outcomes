@@ -48,7 +48,7 @@ def build(root, revision):
     tree=ast.parse(init.decode("utf-8"))
     versions=[ast.literal_eval(node.value) for node in tree.body if isinstance(node,ast.Assign)
               and any(isinstance(target,ast.Name) and target.id=="__version__" for target in node.targets)]
-    if len(versions)!=1 or not isinstance(versions[0],str) or not re.fullmatch(r"\d+\.\d+\.\d+",versions[0]):
+    if len(versions)!=1 or not isinstance(versions[0],str) or not re.fullmatch(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-rc\.[1-9][0-9]*)?",versions[0]):
         raise ValueError("candidate version is missing or invalid")
     entries.extend([
         _entry("SOURCE.json",_encoded({"product":"spend-outcomes","source_revision":revision,"version":versions[0]})),

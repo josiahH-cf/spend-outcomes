@@ -7,17 +7,26 @@ import json
 import os
 import re
 import shlex
+import sqlite3
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from functools import wraps
 from . import __version__
 from .codex import observe_codex
 from .core import digest, encoded, immutable, inspect, read_export, save_record
+from .storage import file_lock, atomic_bytes
 
 
 def utc():
     return dt.datetime.now(dt.timezone.utc).isoformat()
+
+
+def command_text(argv):
+    if os.name == 'nt':
+        return '& ' + ' '.join("'" + str(value).replace("'", "''") + "'" for value in argv)
+    return shlex.join(list(map(str, argv)))
 
 
 def load_bound(spec, config_dir):
@@ -72,7 +81,7 @@ def render(receipt, *, receipt_path=None, command=None, refresh_command=None, st
     def esc(v):return html.escape(value(v),quote=True)
     def paragraph(label,v):return '<p>'+html.escape(label)+': '+esc(v)+'</p>'
     def heading(title):return '<h2>'+title+'</h2>'
-    def cmd(identity,argv):return '<pre id="'+identity+'">'+html.escape(shlex.join(list(map(str,argv))))+'</pre>'
+    def cmd(identity,argv):return '<pre id="'+identity+'">'+html.escape(command_text(argv))+'</pre>'
 
     selection=receipt['selection'];c=receipt['consumption'];source=receipt['source']
     label=selection.get('label') or selection.get('name') or project_label or selection.get('telemetry_project_id') or selection.get('project_id')
@@ -253,7 +262,7 @@ def initialize(args):
         f.write(encoded(config));f.flush();os.fsync(f.fileno())
     return {'config':str(config_path),'inspect_argv':inspect_argv,
             'next_steps':['Config created; no sources read.',
-                          'Run the inspect command to read only your explicitly permitted source: '+shlex.join(inspect_argv),
+                          'Run the inspect command to read only your explicitly permitted source: '+command_text(inspect_argv),
                           'Keep config and generated receipts private. Targets are advisory; checkpoint updates are operator-reported.'],
             'execution_effects':[]}
 
@@ -263,7 +272,8 @@ def replace_config(path, original, config):
     descriptor,temporary=tempfile.mkstemp(prefix='.'+path.name+'.',dir=path.parent)
     try:
         with os.fdopen(descriptor,'wb') as handle:
-            os.fchmod(handle.fileno(),0o600);handle.write(data);handle.flush();os.fsync(handle.fileno())
+            if hasattr(os,'fchmod'):os.fchmod(handle.fileno(),0o600)
+            handle.write(data);handle.flush();os.fsync(handle.fileno())
         if path.read_bytes()!=original:raise ValueError('config changed during local update')
         os.replace(temporary,path)
     except Exception:
@@ -279,6 +289,15 @@ def read_mutable_config(raw_path):
     return path,original,json.loads(original.decode('utf-8'))
 
 
+def serialized_config(operation):
+    @wraps(operation)
+    def update(args):
+        with file_lock(args.config.expanduser().absolute()):
+            return operation(args)
+    return update
+
+
+@serialized_config
 def update_checkpoint(args):
     """Atomically apply one explicit local operator report; never read usage."""
     path,original,config=read_mutable_config(args.config)
@@ -298,6 +317,7 @@ def update_checkpoint(args):
     return {'config':str(path),'checkpoint':update,'execution_effects':[]}
 
 
+@serialized_config
 def update_target(args):
     path,original,config=read_mutable_config(args.config)
     if not args.actor.strip():raise ValueError('actor must not be blank')
@@ -313,6 +333,7 @@ def update_target(args):
     return {'config':str(path),'target':target,'execution_effects':[]}
 
 
+@serialized_config
 def update_outcome(args):
     path,original,config=read_mutable_config(args.config)
     if not args.actor.strip():raise ValueError('actor must not be blank')
@@ -389,6 +410,8 @@ def main(argv=None):
     p=argparse.ArgumentParser(description='Cherry Meter: local advisory consumption, results and decisions')
     p.add_argument('--version',action='version',version=__version__)
     sub=p.add_subparsers(dest='cmd',required=True)
+    from .device import add_parsers, run_command
+    add_parsers(sub)
     i=sub.add_parser('init',help='Create a private config from explicit source and Project bindings; never overwrite',
                      description='Create only the selected config. Declares permission to read the selected source on a later inspect; init reads no sources. Parent directory must exist.')
     i.add_argument('--config',type=Path,required=True)
@@ -437,7 +460,9 @@ def main(argv=None):
     q=sub.add_parser('show');q.add_argument('path',type=Path)
     args=p.parse_args(argv)
     try:
-        if args.cmd=='init':answer=initialize(args)
+        if args.cmd in ('device-init','device-inspect','doctor','collect','collector-health','lifecycle-plan','device-demo','export-plan'):
+            answer=run_command(args, invocation())
+        elif args.cmd=='init':answer=initialize(args)
         elif args.cmd=='checkpoint':answer=update_checkpoint(args)
         elif args.cmd=='target':answer=update_target(args)
         elif args.cmd=='outcome':answer=update_outcome(args)
@@ -473,10 +498,7 @@ def main(argv=None):
                 if args.baseline:refresh_command+=['--baseline',str(args.baseline.resolve())]
                 content=render(receipt,receipt_path=path,command=command,refresh_command=refresh_command,state=args.state,
                                project_label=args.project[:1].upper()+args.project[1:]).encode('utf-8')
-                try:
-                    with hp.open('xb') as f:os.chmod(hp,0o600);f.write(content)
-                except FileExistsError:
-                    if hp.read_bytes()!=content:raise ValueError('HTML receipt conflict')
+                atomic_bytes(hp,content)
             answer={'receipt':str(path),'sha256':receipt_id,'html':str(path.with_suffix('.html')) if args.html else None,'view':receipt}
         elif args.cmd=='record':
             receipt=read_export(args.receipt)
@@ -501,8 +523,9 @@ def main(argv=None):
             if share(record)!=record:raise ValueError('unsupported imported decision fields')
             answer={'record':str(save_record(args.state/'decisions',record)),'execution_effects':[]}
         else:answer=read_export(args.path)
-        print(json.dumps(answer,ensure_ascii=False,sort_keys=True,allow_nan=False));return 0
-    except (ValueError,KeyError,TypeError,OSError,subprocess.SubprocessError) as e:
+        # JSON escapes preserve Unicode paths under native Windows console codepages.
+        print(json.dumps(answer,ensure_ascii=True,sort_keys=True,allow_nan=False));return 0
+    except (ValueError,KeyError,TypeError,OSError,sqlite3.Error,subprocess.SubprocessError) as e:
         print(json.dumps({'status':'held','reason':str(e),'execution_effects':[]}),file=sys.stderr);return 2
 
 

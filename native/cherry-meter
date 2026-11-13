@@ -1,0 +1,8 @@
+#!/bin/sh
+# Requires an existing Python 3.10+; never downloads or installs a runtime.
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 2
+if ! command -v python3 >/dev/null 2>&1; then
+    printf '%s\n' 'Cherry Meter needs an existing Python 3.10+ runtime on PATH. No software was installed.' >&2
+    exit 2
+fi
+exec python3 "$script_dir/launch.py" "$@"

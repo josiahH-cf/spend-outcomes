@@ -3,6 +3,7 @@ import base64
 import copy
 from html.parser import HTMLParser
 import json
+import re
 from pathlib import Path
 import shlex
 import subprocess
@@ -15,6 +16,12 @@ from test_product import source, binding
 import test_cli
 from scripts.hn_delivery import build
 from test_cli import ROOT
+
+
+def split_command(text):
+    if text.startswith("& "):
+        return [token[1:-1].replace("''", "'") for token in re.findall(r"'(?:[^']|'')*'", text[2:])]
+    return shlex.split(text)
 
 
 class Page(HTMLParser):
@@ -76,8 +83,8 @@ class ReadableViewTests(unittest.TestCase):
         self.assertEqual(base64.b64decode(download['href'].split(',',1)[1]),encoded(r))
         self.assertEqual(page.commands['machine-json'],encoded(r).decode())
         with tempfile.TemporaryDirectory() as d:
-            copied=Path(d)/'copy.html';copied.write_text(text)
-            self.assertEqual(Page(copied.read_text()).links,page.links)
+            copied=Path(d)/'copy.html';copied.write_text(text,encoding='utf-8')
+            self.assertEqual(Page(copied.read_text(encoding='utf-8')).links,page.links)
         self.assertNotIn('<script>',text)
 
     def test_untrusted_text_attributes_and_artifact_schemes(self):
@@ -103,18 +110,18 @@ class ReadableViewTests(unittest.TestCase):
             p=Path(d);config=test_cli.CLITests().setup_source(p);state=p/'private state'
             argv=[*command,'inspect','--config',str(config),'--project','workflow','--state',str(state),'--html']
             a=json.loads(subprocess.check_output(argv,cwd=ROOT,text=True))
-            page=Page(Path(a['html']).read_text())
-            show=shlex.split(page.commands['read-command'])
+            page=Page(Path(a['html']).read_text(encoding='utf-8'))
+            show=split_command(page.commands['read-command'])
             self.assertEqual(show[:len(command)],command)
             self.assertEqual(show[-1],str(Path(a['receipt']).resolve()))
             self.assertEqual(json.loads(subprocess.check_output(show,cwd='/',text=True)),a['view'])
-            record=shlex.split(page.commands['feedback-command'])
+            record=split_command(page.commands['feedback-command'])
             self.assertEqual(record[:len(command)],command)
             self.assertIn(str(Path(a['receipt']).resolve()),record)
             saved=json.loads(subprocess.check_output(record,cwd='/',text=True))
-            data=json.loads(Path(saved['record']).read_text())
+            data=json.loads(Path(saved['record']).read_text(encoding='utf-8'))
             self.assertEqual(data['receipt'],a['sha256']);self.assertEqual(saved['execution_effects'],[])
-            refresh=shlex.split(page.commands['refresh-command'])
+            refresh=split_command(page.commands['refresh-command'])
             self.assertEqual(refresh[:len(command)],command)
             b=json.loads(subprocess.check_output(refresh,cwd=ROOT,text=True))
             self.assertEqual(b['receipt'],a['receipt'])
@@ -140,10 +147,10 @@ class ReadableViewTests(unittest.TestCase):
             p=Path(d);config=test_cli.CLITests().setup_source(p)
             a=json.loads(subprocess.check_output([sys.executable,'-m','spend_outcomes','inspect',
                 '--config',str(config),'--project','workflow','--state',str(p/'state'),'--html'],cwd=ROOT,text=True))
-            visible=' '.join(Page(Path(a['html']).read_text()).visible)
+            visible=' '.join(Page(Path(a['html']).read_text(encoding='utf-8')).visible)
             self.assertIn('Workflow',visible)
             self.assertNotIn('label',a['view']['selection'])
-            refresh=shlex.split(Page(Path(a['html']).read_text()).commands['refresh-command'])
+            refresh=split_command(Page(Path(a['html']).read_text(encoding='utf-8')).commands['refresh-command'])
             for _ in range(2):
                 again=json.loads(subprocess.check_output(refresh,cwd='/',text=True))
                 self.assertEqual(again['receipt'],a['receipt'])
